@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+*.log
+data/
+# Unity
+GameClient/[Ll]ibrary/
+GameClient/[Tt]emp/
+GameClient/[Oo]bj/
+GameClient/[Bb]uild/
+GameClient/[Bb]uilds/
+GameClient/[Ll]ogs/
+GameClient/[Uu]ser[Ss]ettings/
+GameClient/*.csproj
+GameClient/*.sln
+*.apk
+*.aab
+*.keystore
