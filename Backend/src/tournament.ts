@@ -472,7 +472,7 @@ export function toSnapshot(t: TournamentData): TournamentSnapshot {
     bestOf: t.bestOf,
     isPublic: t.isPublic,
     status: t.status,
-    entries: t.entries.map((e) => ({ id: e.id, name: e.name, members: e.memberNames })),
+    entries: t.entries.map((e) => ({ id: e.id, name: e.name, members: e.memberNames, memberIds: e.memberIds })),
     matches: t.matches.map((m) => publicMatch(t, m)),
     standings: t.format === 'roundrobin' || (t.format === 'groupko' && t.matches.some((m) => m.bracket === 'GS')) ? standings(t) : [],
     champion: t.champion,

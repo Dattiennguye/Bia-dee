@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": { "@shared/*": ["../Shared/src/*"], "@gameserver/*": ["../GameServer/src/*"], "@backend/*": ["../Backend/src/*"] }
+  },
+  "include": ["src", "vite.config.ts", "../Shared/src", "../GameServer/src/rack.ts", "../Backend/src/room.ts"]
+}

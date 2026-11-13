@@ -1,0 +1,29 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Kiểm tra kiểu (Backend, GameServer, Shared, Tests)
+        run: npm run typecheck
+      - name: Chạy bộ kiểm thử (vật lý, luật, giải đấu, mạng)
+        run: npm test
+      - name: Build máy chủ
+        run: npm run build
+      - name: Build client web
+        run: |
+          npm --prefix GameClient ci
+          npm --prefix GameClient run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-client
+          path: GameClient/dist

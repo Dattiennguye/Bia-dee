@@ -1,0 +1,60 @@
+name: Build Android APK
+on:
+  push:
+    branches: [main]
+    paths: ["GameClient/**", "Shared/**", "GameServer/src/rack.ts", ".github/workflows/android.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: GameClient/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Cài thư viện và build client web
+        working-directory: GameClient
+        env:
+          # Đặt địa chỉ máy chủ ở: Settings → Secrets and variables → Actions → Variables → SERVER_URL
+          VITE_SERVER_URL: ${{ vars.SERVER_URL }}
+        run: |
+          npm ci
+          npm run build
+      - name: Tạo dự án Android (Capacitor)
+        working-directory: GameClient
+        run: |
+          npx cap add android
+          npx cap sync android
+          # Khoá màn hình ngang
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i 's|<activity|<activity android:screenOrientation="sensorLandscape"|' "$MANIFEST"
+          grep -n "screenOrientation" "$MANIFEST"
+      - name: Build APK
+        working-directory: GameClient/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Đổi tên APK
+        run: |
+          mkdir -p out
+          cp GameClient/android/app/build/outputs/apk/debug/app-debug.apk out/VIGO-Billiards-Party.apk
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VIGO-Billiards-Party-apk
+          path: out/VIGO-Billiards-Party.apk
+      - name: Phát hành bản tải về (Releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest out/VIGO-Billiards-Party.apk \
+            --title "VIGO Billiards Party — Android APK (mới nhất)" \
+            --notes "Bản dựng tự động từ commit ${GITHUB_SHA::7}. Tải file .apk về điện thoại Android, cho phép cài từ nguồn không xác định rồi cài đặt." \
+            --target "$GITHUB_SHA"

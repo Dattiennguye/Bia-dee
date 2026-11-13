@@ -1,0 +1,21 @@
+{
+  "name": "vigo-billiards-desktop",
+  "version": "1.0.0",
+  "description": "VIGO BILLIARDS PARTY - bản PC",
+  "main": "main.cjs",
+  "author": "VIGO",
+  "private": true,
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "vn.vigo.billiardsparty",
+    "productName": "VIGO Billiards Party",
+    "files": ["main.cjs", "web/**/*"],
+    "directories": { "output": "release" },
+    "win": { "target": ["portable"] },
+    "linux": { "target": ["AppImage"], "category": "Game" },
+    "mac": { "target": ["zip"], "category": "public.app-category.games" }
+  }
+}

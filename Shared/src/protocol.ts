@@ -143,6 +143,8 @@ export interface TournamentEntryPublic {
   id: string;
   name: string;
   members: string[];
+  /** id người chơi (định danh ngẫu nhiên công khai, không dùng để xác thực) */
+  memberIds: string[];
 }
 
 export interface TournamentSnapshot {

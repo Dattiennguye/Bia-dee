@@ -1,0 +1,44 @@
+name: Build PC (Windows / Linux)
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win portable
+            pattern: "GameClient/desktop/release/*.exe"
+          - os: ubuntu-latest
+            args: --linux AppImage
+            pattern: "GameClient/desktop/release/*.AppImage"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build client web
+        working-directory: GameClient
+        shell: bash
+        env:
+          VITE_SERVER_URL: ${{ vars.SERVER_URL }}
+        run: |
+          npm ci
+          npm run build
+          rm -rf desktop/web && cp -r dist desktop/web
+      - name: Đóng gói bản PC
+        working-directory: GameClient/desktop
+        shell: bash
+        run: |
+          npm install
+          npx electron-builder ${{ matrix.args }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VIGO-Billiards-Party-${{ matrix.os }}
+          path: ${{ matrix.pattern }}

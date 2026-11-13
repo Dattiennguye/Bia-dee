@@ -1,0 +1,48 @@
+const { chromium } = require('playwright');
+const S = (process.env.SHOTS || './shots/');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const mk = async (name, vp) => {
+    const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 });
+    const p = await ctx.newPage(); p.setDefaultTimeout(30000);
+    p.errs = [];
+    p.on('pageerror', (e) => p.errs.push(e.message));
+    await p.addInitScript((n) => { localStorage.setItem('vigo.name', n); localStorage.setItem('vigo.quality','low'); }, name);
+    await p.goto((process.env.BASE || 'http://localhost:8099') + '/');
+    await p.waitForFunction(() => window.__vigo && window.__vigo.net.status === 'online', null, { timeout: 40000 });
+    await sleep(1800);
+    return p;
+  };
+  const A = await mk('Admin An', { width: 900, height: 560 });
+  const B = await mk('Binh', { width: 844, height: 390 });
+  console.log('step1'); await A.click('[data-act="tlist"]'); await sleep(400);
+  await A.click('[data-act="tcreate"]'); await sleep(300);
+  await A.fill('#tname', 'Giải Cuối Tuần');
+  await A.click('[data-t-size="4"]'); await A.click('[data-t-mode="nineball"]'); await A.click('[data-t-bo="1"]');
+  await A.screenshot({ path: S + '20_tcreate.png' });
+  await A.click('[data-act="dotcreate"]'); await sleep(700);
+  const code = await A.evaluate(() => document.querySelector('[data-act="copytour"]').textContent.match(/MÃ (\w+)/)[1]);
+  console.log('tour code', code);
+  await A.click('[data-act="tjoin"]'); await sleep(300);
+  await B.click('[data-act="tlist"]'); await sleep(500);
+  await B.screenshot({ path: S + '21_tlist.png' });
+  await B.fill('#tcode', code); await B.click('[data-act="topen"]'); await sleep(500);
+  await B.click('[data-act="tjoin"]'); await sleep(400);
+  await A.click('[data-act="tstart"]'); await sleep(800);
+  await A.screenshot({ path: S + '22_bracket_admin.png' });
+  await B.screenshot({ path: S + '23_bracket_B.png' });
+  await A.click('[data-joinmatch]'); await B.click('[data-joinmatch]');
+  await sleep(5000);
+  console.log('screens', await A.evaluate(() => window.__vigo.screen), await B.evaluate(() => window.__vigo.screen));
+  await B.screenshot({ path: S + '24_tmatch_B.png' });
+  // A rời trận -> B thắng
+  await A.evaluate(() => window.__vigo.act('leave'));
+  await sleep(1500);
+  await B.screenshot({ path: S + '25_result_B.png' });
+  console.log('B screen', await B.evaluate(() => window.__vigo.screen));
+  await B.click('[data-act="backtour"]'); await sleep(900);
+  await B.screenshot({ path: S + '26_after_match.png' });
+  console.log('errors', A.errs, B.errs);
+  await browser.close();
+})().catch((e) => { console.error(e); process.exit(1); });

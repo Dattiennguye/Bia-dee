@@ -16,3 +16,8 @@ GameClient/*.sln
 *.apk
 *.aab
 *.keystore
+GameClient/dist/
+GameClient/android/
+GameClient/desktop/web/
+GameClient/desktop/release/
+GameClient/desktop/node_modules/

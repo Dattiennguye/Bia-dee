@@ -1,0 +1,55 @@
+# 07 · Báo cáo kiểm thử & tình trạng nghiệm thu
+
+*Nguyên tắc: không tuyên bố hoàn thành khi chưa kiểm thử. Bảng dưới ghi rõ cái gì đã chạy thật, cái gì chưa.*
+
+## 1. Đã kiểm thử tự động (chạy bằng `npm test`) — 77/77 đạt
+| Nhóm | Số test | Nội dung |
+|---|---|---|
+| Vật lý & xếp bi | 14 | tất định; bi dừng, ở trong bàn; lăn/dừng; **xoáy lùi/tiến** đúng chiều; xoáy ngang đổi hướng sau băng; bi vào lỗ góc; bi cái rơi lỗ; xếp bi không chồng cho 8/9 bi/Rotation |
+| Luật chơi | 27 | cấu hình hợp lệ; 8 bi (gán nhóm, chạm sai, bi 8 sớm/đúng/kèm lỗi, phá bi); 9 bi (chạm bi nhỏ nhất, thắng, đặt lại bi 9); Rotation (điểm, phạt, 61 điểm); từ chối đánh sai lượt/dữ liệu hỏng; hết giờ; rời trận; **bot chơi trọn ván ở 6 cấu hình** (2/3/4 người, solo/đội) với kiểm tra bất biến sau mỗi cú đánh |
+| Giải đấu | 26 | Single (2–32 người, BYE), Double (có chung kết phụ), Round Robin, Bảng+Knockout (4/8/16/32); mỗi người chỉ thua đúng số lần quy định; BO3; xử thua; không lộ mã quản lý |
+| Mạng thật (WebSocket) | 10 | auth/ping; tạo phòng, nhập mã, phòng đầy, sai mã; **2 người chơi trọn trận, cả hai nhận cùng kết quả**; chơi với bot; **4 người đội 2v2 trọn trận, bi đồng bộ**; Rotation 3 người; **mất mạng rồi kết nối lại khôi phục đúng bàn**; không quay lại → xử thua; **giải 4 người từ đăng ký → chia nhánh → hai vòng → vô địch**, sai mã quản lý bị chặn |
+
+## 2. Đã kiểm thử bằng trình duyệt thật (Chromium + WebGL, Playwright)
+- Hai trình duyệt (một cỡ màn hình điện thoại ngang): tạo phòng → nhập mã → vào phòng chờ → bắt đầu → đánh → **bi hai bên giống nhau từng toạ độ**.
+- Giải đấu qua giao diện: tạo giải, đăng ký, bắt đầu, “Vào trận”, rời trận → đối thủ nhận màn hình kết quả, quay về bảng đấu.
+- Chơi với máy **không có máy chủ**: mình đánh, máy đánh lại, luật hoạt động.
+- Chụp và xem lại: menu, tạo phòng, phòng chờ, bàn 3D ở các camera Trên/3D/Sau cơ/Tự do/Phim, bảng đấu, kết quả.
+- Không có lỗi JavaScript trong các phiên kiểm thử.
+
+Script: `Tests/ui/` (hướng dẫn chạy trong `Tests/ui/README.md`).
+
+## 3. Chưa kiểm thử được trong môi trường phát triển (nói thẳng)
+| Hạng mục | Vì sao | Cách nghiệm thu |
+|---|---|---|
+| Build APK / cài trên điện thoại | môi trường không tải được Android SDK; APK được dựng bởi GitHub Actions | chạy workflow *Build Android APK*, cài APK lên điện thoại |
+| 2 điện thoại thật, 2 mạng Internet khác nhau; 4 thiết bị; Android ↔ PC | cần thiết bị/mạng thật của bạn | làm theo Bài kiểm thử 1–3 trong đặc tả, dùng máy chủ ở tài liệu 06 |
+| FPS 60/90/120 trên máy thật | cần máy thật (trình duyệt kiểm thử dùng giả lập GPU phần mềm) | bật chất lượng Thấp/TB/Cao, xem độ mượt |
+| Bản PC đóng gói Electron | chỉ build được trên máy Windows/Linux runner của GitHub | chạy workflow *Build PC* |
+| Tải/độ trễ cao ngoài thực tế | chưa có máy chủ công khai | chơi thử khi đã triển khai |
+| Mạng yếu (tắt/bật mạng giữa trận) | đã test bằng cách ngắt/khôi phục kết nối ở mức giao thức; chưa test trên 4G thật | thử thực tế: bật chế độ máy bay vài giây rồi tắt |
+
+## 4. Đối chiếu “Tiêu chuẩn hoàn thành” của đặc tả
+| Tiêu chuẩn | Tình trạng |
+|---|---|
+| Game cài đặt được | ⏳ APK do Actions dựng — cần bạn chạy workflow và cài thử |
+| Backend chạy thực tế | ✅ (đã chạy server thật, bundle `dist/server.js`, Docker file viết sẵn nhưng **chưa chạy thử Docker**) |
+| Tạo phòng / tham gia bằng mã | ✅ |
+| Hai người khác mạng chơi được | ⏳ giao thức đã test; cần thử trên 2 mạng thật |
+| Bốn người cùng bàn | ✅ test mạng thật (4 kết nối); ⏳ 4 thiết bị thật |
+| Android ↔ PC | ⏳ cùng giao thức; cần thử thật |
+| Vật lý / luật hoạt động | ✅ |
+| Giải đấu chạy được | ✅ |
+| Không còn lỗi nghiêm trọng | Không có lỗi đã biết ở các luồng đã test; cần thử thiết bị thật để phát hiện thêm |
+
+## 5. Hạn chế thiết kế đã biết
+- Luật đơn giản hoá: không “gọi lỗ”; xử lý lỗi theo bảng ở `GameServer/src/rules.ts` (đối thủ được đặt bi cái tự do). Luật 8 bi cho 4 người dùng **đội 2v2** (8 bi cá nhân chỉ 2 người) — đây là luật riêng cho bàn 4 người, đã ghi trong giao diện.
+- Phòng đang chơi mất khi máy chủ khởi động lại (giải đấu thì được lưu).
+- Gói Render Free ngủ khi nhàn rỗi.
+- APK ký bằng khoá debug (đủ để cài thử; lên Google Play cần khoá phát hành).
+- Chế độ **Party** để phiên bản sau, đúng đặc tả.
+
+## 6. Việc còn lại để “đóng” MVP
+1. Bật GitHub Actions, đặt biến `SERVER_URL`, chạy *Build Android APK*.
+2. Triển khai máy chủ (tài liệu 06, mục A).
+3. Thực hiện 5 bài kiểm thử nghiệm thu trên thiết bị thật và báo lại lỗi (nếu có) để sửa tiếp.

@@ -1,0 +1,7 @@
+node_modules
+GameClient/node_modules
+GameClient/dist
+GameClient/android
+dist
+data
+.git
