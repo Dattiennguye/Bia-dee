@@ -131,7 +131,7 @@ function feltTexture(aniso: number): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d')!;
-  g.fillStyle = '#13744a';
+  g.fillStyle = '#b0b0b0';
   g.fillRect(0, 0, S, S);
   const img = g.getImageData(0, 0, S, S);
   for (let i = 0; i < img.data.length; i += 4) {
@@ -253,6 +253,25 @@ class Strip {
   hide(): void { this.mesh.visible = false; }
 }
 
+export interface TableTheme { id: string; name: string; felt: number; cushion: number; wood: number; brass: number; neon: number; dia: number }
+export const TABLE_THEMES: TableTheme[] = [
+  { id: 'classic', name: 'Cổ điển', felt: 0x13744a, cushion: 0x1b9a5c, wood: 0xffffff, brass: 0xe0b050, neon: 0xff5fa8, dia: 0xf7eac0 },
+  { id: 'royal', name: 'Hoàng gia', felt: 0x1b55b8, cushion: 0x1d58b0, wood: 0x5a5f70, brass: 0xc8d0e0, neon: 0x57d6ff, dia: 0xe8f0ff },
+  { id: 'crimson', name: 'Nhung đỏ', felt: 0xa51c30, cushion: 0x96182a, wood: 0xd9a46c, brass: 0xe0b050, neon: 0xffd34d, dia: 0xfff0c8 },
+  { id: 'luxury', name: 'Ngọc lục bảo', felt: 0x0b6a48, cushion: 0x0e7a52, wood: 0x2b2b30, brass: 0xffd45a, neon: 0xffd34d, dia: 0xffe9a0 },
+  { id: 'cyber', name: 'Cyber', felt: 0x2a2060, cushion: 0x3a2f80, wood: 0x2a2a3a, brass: 0x57ffe0, neon: 0x8f6bff, dia: 0x9ffff0 },
+  { id: 'candy', name: 'Kẹo ngọt', felt: 0xd24a92, cushion: 0xbd3b82, wood: 0xffc0d4, brass: 0xfff2a8, neon: 0x57d6ff, dia: 0xffffff },
+];
+
+export interface EnvTheme { id: string; name: string; sky: Array<[number, string]>; fog: [number, number, number]; floor: number; rim: [number, number]; hemi: [number, number] }
+export const ENVS: EnvTheme[] = [
+  { id: 'lounge', name: 'Lounge neon', sky: [[0, '#2a1650'], [1, '#0a0614']], fog: [0x120c22, 9, 20], floor: 0x2b1b47, rim: [0x9a7bff, 0xff7ab8], hemi: [0xcfd8ff, 0x2a1a3a] },
+  { id: 'club', name: 'Câu lạc bộ', sky: [[0, '#3a2414'], [1, '#0c0705']], fog: [0x120a06, 8, 18], floor: 0x3a2414, rim: [0xffc98a, 0xff9a5a], hemi: [0xffe6c0, 0x2a1a10] },
+  { id: 'space', name: 'Vũ trụ', sky: [[0, '#05030f'], [0.6, '#0b1038'], [1, '#2a1260']], fog: [0x05030f, 20, 70], floor: 0x0b0d26, rim: [0x57d6ff, 0xb06bff], hemi: [0xb0c0ff, 0x10102a] },
+  { id: 'sunset', name: 'Hoàng hôn biển', sky: [[0, '#1b2a66'], [0.5, '#b4507a'], [0.78, '#ff8a5c'], [1, '#ffd08a']], fog: [0xc06070, 14, 40], floor: 0x6a4a30, rim: [0xffa070, 0x7aa8ff], hemi: [0xffd7b0, 0x3a2a4a] },
+  { id: 'arena', name: 'Đấu trường', sky: [[0, '#02040c'], [1, '#07102a']], fog: [0x03050f, 10, 26], floor: 0x07080f, rim: [0x57d6ff, 0xff5fa8], hemi: [0xa0b8ff, 0x050816] },
+];
+
 interface BallView {
   id: number;
   mesh: THREE.Mesh;
@@ -290,6 +309,16 @@ export class BilliardScene {
   private running = false;
   private aniso = 4;
   private floaters: THREE.Mesh[] = [];
+  private envGroups: Record<string, THREE.Group> = {};
+  private sky!: THREE.Mesh;
+  private skyTex: Record<string, THREE.CanvasTexture> = {};
+  private rimL!: THREE.DirectionalLight;
+  private rimL2!: THREE.DirectionalLight;
+  private hemiL!: THREE.HemisphereLight;
+  private tm!: { felt: THREE.MeshStandardMaterial; wood: THREE.MeshStandardMaterial; cushion: THREE.MeshStandardMaterial; brass: THREE.MeshStandardMaterial; neon: THREE.MeshBasicMaterial; dia: THREE.MeshStandardMaterial; ring: THREE.MeshBasicMaterial };
+  tableId = 'classic';
+  envId = 'lounge';
+  get tableTheme(): TableTheme { return TABLE_THEMES.find((t) => t.id === this.tableId) ?? TABLE_THEMES[0]; }
 
   quality: Quality = 'auto';
   camMode: CamMode = 'persp';
@@ -354,7 +383,7 @@ export class BilliardScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.92;
     this.aniso = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
-    this.camera = new THREE.PerspectiveCamera(42, 1, 0.05, 40);
+    this.camera = new THREE.PerspectiveCamera(42, 1, 0.05, 90);
 
     this.scene.background = new THREE.Color(0x120c22);
     this.scene.fog = new THREE.Fog(0x120c22, 9, 20);
@@ -364,7 +393,8 @@ export class BilliardScene {
     this.scene.environmentIntensity = 0.5;
     pm.dispose();
 
-    this.scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x2a1a3a, 0.55));
+    this.hemiL = new THREE.HemisphereLight(0xcfd8ff, 0x2a1a3a, 0.55);
+    this.scene.add(this.hemiL);
     this.key = new THREE.DirectionalLight(0xfff1dc, 2.2);
     this.key.position.set(0.6, 4, 0.9);
     this.key.target.position.set(0, 0, 0);
@@ -383,8 +413,10 @@ export class BilliardScene {
     const rim2 = new THREE.DirectionalLight(0xff7ab8, 0.9);
     rim2.position.set(3, 2, 2.5);
     this.scene.add(rim, rim2);
+    this.rimL = rim;
+    this.rimL2 = rim2;
 
-    this.buildRoom();
+    this.buildSky();
     this.buildTable();
     this.buildBalls();
     this.buildCue();
@@ -404,40 +436,240 @@ export class BilliardScene {
     this.placeRing.visible = false;
     this.scene.add(this.ghostBall, this.placeRing);
     this.setQuality(this.quality);
+    this.setTable(this.tableId);
+    this.setEnv(this.envId);
   }
 
   // ---------- dựng cảnh ----------
-  private buildRoom(): void {
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(14, 48),
-      new THREE.MeshStandardMaterial({ color: 0x2b1b47, roughness: 0.9, metalness: 0.0 }),
-    );
+  // ---------- không gian xung quanh ----------
+  private buildSky(): void {
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(70, 24, 16), new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false, depthWrite: false }));
+    this.sky.renderOrder = -10;
+    this.scene.add(this.sky);
+  }
+
+  private skyTexture(e: EnvTheme): THREE.CanvasTexture {
+    if (this.skyTex[e.id]) return this.skyTex[e.id];
+    const c = document.createElement('canvas');
+    c.width = 8; c.height = 256;
+    const g = c.getContext('2d')!;
+    const gr = g.createLinearGradient(0, 0, 0, 256);
+    for (const [o, col] of e.sky) gr.addColorStop(o, col);
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 8, 256);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.skyTex[e.id] = t;
+    return t;
+  }
+
+  setEnv(id: string): void {
+    const e = ENVS.find((x) => x.id === id) ?? ENVS[0];
+    this.envId = e.id;
+    for (const k in this.envGroups) this.envGroups[k].visible = false;
+    if (!this.envGroups[e.id]) {
+      this.envGroups[e.id] = this.buildEnv(e);
+      this.scene.add(this.envGroups[e.id]);
+    }
+    const g = this.envGroups[e.id];
+    g.visible = true;
+    this.floaters = (g.userData.floaters as THREE.Mesh[]) ?? [];
+    (this.sky.material as THREE.MeshBasicMaterial).map = this.skyTexture(e);
+    (this.sky.material as THREE.MeshBasicMaterial).needsUpdate = true;
+    this.scene.background = new THREE.Color(e.fog[0]);
+    this.scene.fog = new THREE.Fog(e.fog[0], e.fog[1], e.fog[2]);
+    this.rimL.color.set(e.rim[0]);
+    this.rimL2.color.set(e.rim[1]);
+    this.hemiL.color.set(e.hemi[0]);
+    this.hemiL.groundColor.set(e.hemi[1]);
+  }
+
+  setTable(id: string): void {
+    const t = TABLE_THEMES.find((x) => x.id === id) ?? TABLE_THEMES[0];
+    this.tableId = t.id;
+    this.tm.felt.color.set(t.felt).multiplyScalar(2.3);
+    this.tm.cushion.color.set(t.cushion);
+    this.tm.wood.color.set(t.wood);
+    this.tm.brass.color.set(t.brass);
+    this.tm.neon.color.set(t.neon);
+    this.tm.dia.color.set(t.dia);
+  }
+
+  private buildEnv(e: EnvTheme): THREE.Group {
+    const G = new THREE.Group();
+    const floaters: THREE.Mesh[] = [];
+    G.userData.floaters = floaters;
+    const floorMat = new THREE.MeshStandardMaterial({ color: e.floor, roughness: e.id === 'arena' ? 0.2 : 0.85, metalness: e.id === 'arena' ? 0.6 : 0 });
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(e.id === 'sunset' ? 7 : 14, 48), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.78;
-    this.scene.add(floor);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(5.2, 5.24, 96), new THREE.MeshBasicMaterial({ color: 0xff5fa8, side: THREE.DoubleSide, transparent: true, opacity: 0.45 }));
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -0.77;
-    this.scene.add(ring);
-    // quầng sáng dưới bàn
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 4.2), new THREE.MeshBasicMaterial({ map: radialTexture('rgba(255,95,168,0.55)', 'rgba(255,95,168,0)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    glow.rotation.x = -Math.PI / 2;
-    glow.position.y = -0.76;
-    this.scene.add(glow);
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 0.34), new THREE.MeshBasicMaterial({ color: 0xfff6dd }));
-    lamp.position.set(0, 2.6, 0);
-    const lampCase = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 0.44), new THREE.MeshStandardMaterial({ color: 0x15101f, roughness: 0.5 }));
-    lampCase.position.set(0, 2.68, 0);
-    this.scene.add(lamp, lampCase);
-    const colors = [0xff5fa8, 0x57d6ff, 0xffd34d, 0x8f6bff];
-    for (let i = 0; i < 10; i++) {
-      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1 + Math.random() * 0.12, 1), new THREE.MeshStandardMaterial({ color: colors[i % 4], roughness: 0.4, emissive: colors[i % 4], emissiveIntensity: 0.25 }));
-      const a = (i / 10) * Math.PI * 2;
-      m.position.set(Math.cos(a) * 5.5, -0.3 + Math.random() * 2.5, Math.sin(a) * 5.5);
+    G.add(floor);
+    const ringAt = (r0: number, r1: number, color: number, op: number, y = -0.77) => {
+      const m = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 96), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: op }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = y;
+      G.add(m);
+    };
+    const glow = (color: string, w: number, h: number, y = -0.76) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: radialTexture(color, color.replace(/[\d.]+\)$/, '0)')), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = y;
+      G.add(m);
+    };
+    const lampBar = () => {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 0.34), new THREE.MeshBasicMaterial({ color: 0xfff6dd }));
+      lamp.position.set(0, 2.6, 0);
+      const lampCase = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 0.44), new THREE.MeshStandardMaterial({ color: 0x15101f, roughness: 0.5 }));
+      lampCase.position.set(0, 2.68, 0);
+      G.add(lamp, lampCase);
+    };
+    const orb = (color: number, r: number, x: number, y: number, z: number, emi = 0.3) => {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), new THREE.MeshStandardMaterial({ color, roughness: 0.4, emissive: color, emissiveIntensity: emi }));
+      m.position.set(x, y, z);
       m.userData.float = Math.random() * 6;
-      this.scene.add(m);
-      this.floaters.push(m);
+      G.add(m);
+      floaters.push(m);
+      return m;
+    };
+
+    if (e.id === 'lounge') {
+      ringAt(5.2, 5.24, 0xff5fa8, 0.45);
+      glow('rgba(255,95,168,0.55)', 6.5, 4.2);
+      lampBar();
+      const colors = [0xff5fa8, 0x57d6ff, 0xffd34d, 0x8f6bff];
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        orb(colors[i % 4], 0.1 + Math.random() * 0.12, Math.cos(a) * 5.5, -0.3 + Math.random() * 2.5, Math.sin(a) * 5.5, 0.25);
+      }
+    } else if (e.id === 'club') {
+      glow('rgba(255,170,90,0.5)', 6.5, 4.2);
+      ringAt(4.6, 4.66, 0xffc98a, 0.5);
+      // đèn chùm thấp phía trên bàn
+      for (const x of [-0.9, 0, 0.9]) {
+        const shade = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.2, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x0f5a3a, roughness: 0.5, side: THREE.DoubleSide }));
+        shade.position.set(x, 2.3, 0);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff0c8 }));
+        bulb.position.set(x, 2.2, 0);
+        const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+        cord.position.set(x, 3.1, 0);
+        G.add(shade, bulb, cord);
+      }
+      // tường gỗ + đèn tường + tranh
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a2a16, roughness: 0.7 });
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.6, 0.15), wallMat);
+        panel.position.set(Math.cos(a) * 8, 1.0, Math.sin(a) * 8);
+        panel.lookAt(0, 1.0, 0);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 0.8, roughness: 0.3 }));
+        frame.position.set(Math.cos(a) * 7.9, 1.3, Math.sin(a) * 7.9);
+        frame.lookAt(0, 1.3, 0);
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd9a0 }));
+        lamp.position.set(Math.cos(a) * 7.8, 2.2, Math.sin(a) * 7.8);
+        G.add(panel, frame, lamp);
+      }
+    } else if (e.id === 'space') {
+      floor.material = new THREE.MeshStandardMaterial({ color: 0x0b0d26, roughness: 0.3, metalness: 0.7, transparent: true, opacity: 0.85 });
+      for (const r of [2.5, 3.5, 4.5, 5.5]) ringAt(r, r + 0.03, 0x57d6ff, 0.35);
+      glow('rgba(87,214,255,0.45)', 7, 5);
+      // sao
+      const N = 900;
+      const pos = new Float32Array(N * 3);
+      for (let i = 0; i < N; i++) {
+        const u = Math.random() * 2 - 1, th = Math.random() * 6.283, r = 40 + Math.random() * 20;
+        const q = Math.sqrt(1 - u * u);
+        pos[i * 3] = Math.cos(th) * q * r; pos[i * 3 + 1] = Math.abs(u) * r * 0.9 - 4; pos[i * 3 + 2] = Math.sin(th) * q * r;
+      }
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      G.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.18, sizeAttenuation: true, fog: false })));
+      // hành tinh
+      const planet = new THREE.Mesh(new THREE.SphereGeometry(5, 32, 20), new THREE.MeshStandardMaterial({ color: 0x7a4cff, roughness: 0.7, emissive: 0x2a1470, emissiveIntensity: 0.5 }));
+      planet.position.set(-18, 9, -26);
+      const pr = new THREE.Mesh(new THREE.RingGeometry(7, 10, 64), new THREE.MeshBasicMaterial({ color: 0xffb86b, side: THREE.DoubleSide, transparent: true, opacity: 0.55, fog: false }));
+      pr.position.copy(planet.position);
+      pr.rotation.set(1.2, 0.3, 0);
+      const moon = new THREE.Mesh(new THREE.SphereGeometry(1.6, 20, 14), new THREE.MeshStandardMaterial({ color: 0xcfd6ff, roughness: 0.9, emissive: 0x303860, emissiveIntensity: 0.4 }));
+      moon.position.set(22, 7, -20);
+      G.add(planet, pr, moon);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        orb([0x57d6ff, 0xb06bff, 0xffd34d][i % 3], 0.12 + Math.random() * 0.16, Math.cos(a) * 6, -0.2 + Math.random() * 3, Math.sin(a) * 6, 0.7);
+      }
+    } else if (e.id === 'sunset') {
+      // sàn gỗ bến tàu + biển
+      const sea = new THREE.Mesh(new THREE.CircleGeometry(60, 48), new THREE.MeshStandardMaterial({ color: 0x1b3f7a, roughness: 0.25, metalness: 0.5 }));
+      sea.rotation.x = -Math.PI / 2;
+      sea.position.y = -1.0;
+      G.add(sea);
+      const sun = new THREE.Mesh(new THREE.CircleGeometry(5, 40), new THREE.MeshBasicMaterial({ color: 0xffd08a, fog: false }));
+      sun.position.set(0, 3.2, -48);
+      const sunGlow = new THREE.Mesh(new THREE.CircleGeometry(14, 40), new THREE.MeshBasicMaterial({ map: radialTexture('rgba(255,170,90,0.8)', 'rgba(255,170,90,0)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      sunGlow.position.set(0, 3.2, -47);
+      G.add(sun, sunGlow);
+      // ván sàn
+      const plank = new THREE.MeshStandardMaterial({ color: 0x8a5a38, roughness: 0.8 });
+      for (let i = -6; i <= 6; i++) {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(14, 0.05, 0.42), plank);
+        b.position.set(0, -0.78, i * 0.5);
+        b.scale.x = Math.sqrt(Math.max(0.05, 1 - (i / 7) ** 2));
+        G.add(b);
+      }
+      floor.visible = false;
+      // cọc đèn dây
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.3;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 2.6, 8), new THREE.MeshStandardMaterial({ color: 0x5a3820, roughness: 0.8 }));
+        post.position.set(Math.cos(a) * 6.2, 0.5, Math.sin(a) * 6.2);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe0a0 }));
+        bulb.position.set(Math.cos(a) * 6.2, 1.85, Math.sin(a) * 6.2);
+        G.add(post, bulb);
+      }
+      // cọ
+      for (const [x, z, h] of [[-5.2, -3.5, 3.2], [5.6, -2.6, 2.8]] as Array<[number, number, number]>) {
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, h, 8), new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.9 }));
+        trunk.position.set(x, h / 2 - 0.8, z);
+        trunk.rotation.z = x > 0 ? 0.12 : -0.12;
+        G.add(trunk);
+        for (let k = 0; k < 7; k++) {
+          const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.16, 1.8, 6), new THREE.MeshStandardMaterial({ color: 0x1f7a45, roughness: 0.8 }));
+          const a = (k / 7) * Math.PI * 2;
+          leaf.position.set(x + Math.cos(a) * 0.8 + (x > 0 ? 0.3 : -0.3), h - 0.7, z + Math.sin(a) * 0.8);
+          leaf.rotation.set(Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2);
+          G.add(leaf);
+        }
+      }
+      glow('rgba(255,160,100,0.35)', 6.5, 4.2, -0.74);
+    } else {
+      // arena
+      for (const r of [2.4, 3.6, 4.8, 6.0]) ringAt(r, r + 0.04, r > 5 ? 0xff5fa8 : 0x57d6ff, 0.6);
+      glow('rgba(87,214,255,0.4)', 7, 5);
+      lampBar();
+      // chùm tia sáng
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.9, 9, 20, 1, true), new THREE.MeshBasicMaterial({ color: i % 2 ? 0x57d6ff : 0xff5fa8, transparent: true, opacity: 0.10, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        beam.position.set(Math.cos(a) * 5, 3.5, Math.sin(a) * 5);
+        beam.rotation.set(Math.sin(a) * 0.28, 0, -Math.cos(a) * 0.28);
+        G.add(beam);
+      }
+      // khán đài: các chấm sáng nhiều màu
+      const N = 420;
+      const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }), N);
+      const m4 = new THREE.Matrix4();
+      const col = new THREE.Color();
+      const cs = [0xff5fa8, 0x57d6ff, 0xffd34d, 0x8f6bff, 0xffffff];
+      for (let i = 0; i < N; i++) {
+        const tier = i % 5;
+        const a = Math.random() * Math.PI * 2;
+        const r = 9 + tier * 0.9;
+        m4.makeTranslation(Math.cos(a) * r, -0.2 + tier * 0.7 + Math.random() * 0.2, Math.sin(a) * r);
+        dots.setMatrixAt(i, m4);
+        dots.setColorAt(i, col.set(cs[(Math.random() * cs.length) | 0]));
+      }
+      G.add(dots);
     }
+    return G;
   }
 
   private buildTable(): void {
@@ -547,7 +779,8 @@ export class BilliardScene {
     const diaGeo = new THREE.CylinderGeometry(0.0115, 0.0115, 0.003, 4);
     diaGeo.rotateY(Math.PI / 4);
     diaGeo.scale(0.8, 1, 1.25);
-    const dia = new THREE.InstancedMesh(diaGeo, new THREE.MeshStandardMaterial({ color: 0xf7eac0, roughness: 0.25, metalness: 0.5 }), diaPos.length);
+    const diaMat = new THREE.MeshStandardMaterial({ color: 0xf7eac0, roughness: 0.25, metalness: 0.5 });
+    const dia = new THREE.InstancedMesh(diaGeo, diaMat, diaPos.length);
     const mtx = new THREE.Matrix4();
     diaPos.forEach(([x, z], i) => { mtx.makeTranslation(x, RAIL_H + 0.0016, z); dia.setMatrixAt(i, mtx); });
     t.add(dia);
@@ -561,7 +794,9 @@ export class BilliardScene {
 
     // Dải neon dưới bàn
     const neon = polygonClipping.difference([[rrect(outerHX + 0.006, outerHZ + 0.006, 0.075)]] as never, [[rrect(outerHX - 0.012, outerHZ - 0.012, 0.06)]] as never) as Multi;
-    t.add(new THREE.Mesh(extrude(neon, -0.27, 0.012), new THREE.MeshBasicMaterial({ color: 0xff5fa8 })));
+    const neonMat = new THREE.MeshBasicMaterial({ color: 0xff5fa8 });
+    t.add(new THREE.Mesh(extrude(neon, -0.27, 0.012), neonMat));
+    this.tm = { felt: feltMat, wood, cushion: cushionMat, brass, neon: neonMat, dia: diaMat, ring: neonMat };
 
     // Chân bàn
     for (const sx of [-1, 1]) {

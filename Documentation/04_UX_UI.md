@@ -57,3 +57,8 @@ Chất lượng thấp/trung bình/cao (độ phân giải, bóng đổ); menu h
 - **Màn hình khuyết/tai thỏ**: app vẽ toàn màn hình (`SHORT_EDGES`), ẩn thanh hệ thống, HUD tự chừa lề an toàn.
 - **Đồ họa**: lỗ bàn thật (cắt hình học), khung gỗ có vân, viền đồng, bóng tiếp xúc, đường ngắm nét.
 - **Hiệu năng**: ~64 draw call, ~29k tam giác; chế độ "Tự động" hạ/nâng độ phân giải để giữ 60–120 FPS, ưu tiên tần số quét cao nhất của máy.
+
+## v1.3 — Bàn và không gian
+- 6 bàn: Cổ điển, Hoàng gia (xanh), Nhung đỏ, Ngọc lục bảo (khung đen/đồng vàng), Cyber, Kẹo ngọt.
+- 5 không gian: Lounge neon, Câu lạc bộ, Vũ trụ, Hoàng hôn biển, Đấu trường.
+- Chọn ở Cài đặt hoặc menu tạm dừng khi đang chơi, xem trước ngay; lưu trên máy. Chỉ ảnh hưởng giao diện của riêng bạn.

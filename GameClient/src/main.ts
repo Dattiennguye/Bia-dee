@@ -2,7 +2,7 @@ import './styles.css';
 import { Net, LS, normalizeServer } from './net';
 import { audio } from './audio';
 import { ic } from './icons';
-import { BilliardScene, ballColor, type CamMode, type Quality } from './scene';
+import { BilliardScene, ballColor, ENVS, TABLE_THEMES, type CamMode, type Quality } from './scene';
 import { initialBalls } from '@gameserver/rack';
 import {
   TABLE,
@@ -63,6 +63,13 @@ let lastTurnSeat = -1;
 let timerHandle = 0;
 let inGameScreenStart = 0;
 let quality: Quality = (LS.get('vigo.quality') as Quality) || 'auto';
+
+const hex6 = (n: number) => '#' + n.toString(16).padStart(6, '0');
+/** Chọn bàn và không gian xung quanh (xem trước ngay trên cảnh nền) */
+function themePicker(): string {
+  return `<div><label class="lbl">Bàn bi-a</label><div class="swatches">${TABLE_THEMES.map((t) => `<button class="sw ${scene.tableId === t.id ? 'on' : ''}" data-tbl="${t.id}" title="${t.name}" style="--a:${hex6(t.felt)};--b:${hex6(t.wood === 0xffffff ? 0x6e3a1f : t.wood)};--c:${hex6(t.brass)}"><i></i><span>${t.name}</span></button>`).join('')}</div></div>
+  <div><label class="lbl">Không gian xung quanh</label><div class="chips">${ENVS.map((e) => `<button class="chip ${scene.envId === e.id ? 'on' : ''}" data-env="${e.id}">${e.name}</button>`).join('')}</div></div>`;
+}
 
 function esc(s: unknown): string {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -378,7 +385,7 @@ function drawMini(): void {
   g.clearRect(0, 0, w, h);
   g.fillStyle = 'rgba(70,34,20,.92)';
   g.beginPath(); g.roundRect(0, 0, w, h, 12); g.fill();
-  g.fillStyle = '#157a4b';
+  g.fillStyle = hex6(scene.tableTheme.felt);
   g.beginPath(); g.roundRect(pad - 2, pad - 2, w - 2 * pad + 4, h - 2 * pad + 4, 5); g.fill();
   g.fillStyle = '#050505';
   for (const p of [[0, 0], [L, 0], [0, W], [L, W], [L / 2, 0], [L / 2, W]]) { g.beginPath(); g.arc(X(p[0]), Y(p[1]), 5, 0, 6.3); g.fill(); }
@@ -841,6 +848,7 @@ function settings(): void {
       <div><label class="lbl">Nhạc nền</label><input class="range" type="range" id="vmusic" min="0" max="1" step="0.05" value="${audio.musicVol}" /></div>
       <div><label class="lbl">Âm thanh hiệu ứng</label><input class="range" type="range" id="vsfx" min="0" max="1" step="0.05" value="${audio.sfxVol}" /></div>
       <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
+      ${themePicker()}
       <div><label class="lbl">Máy chủ game</label><input id="sserver" value="${esc(net.server)}" placeholder="vd: bida.example.com" autocapitalize="none" autocomplete="off" />
       <div class="pmeta" style="margin-top:4px">Trạng thái: ${net.status === 'online' ? '🟢 đã kết nối' : net.status === 'offline' ? '🔴 ngoại tuyến' : '🟡 đang kết nối'} ${net.lastError && net.status !== 'online' ? '· ' + esc(net.lastError) : ''}</div></div>
       <button class="btn gold block" data-act="savesettings">LƯU</button>
@@ -965,6 +973,7 @@ function pauseMenu(): void {
   d.innerHTML = `<div class="panel col" style="align-items:stretch"><h2>Tạm dừng</h2>
     <div class="sub">Ván đấu trực tuyến vẫn tiếp tục khi bạn mở menu.</div>
     <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
+    ${themePicker()}
     <button class="btn gold block" data-act="resume">${ic('play', 18)} TIẾP TỤC</button>
     <button class="btn ghost block" data-act="leave">${ic('exit', 18)} RỜI TRẬN</button></div>`;
   ui.appendChild(d);
@@ -979,6 +988,8 @@ ui.addEventListener('click', (e) => {
   const tm = t.closest('[data-team]') as HTMLElement | null;
   const bo = t.closest('[data-bo]') as HTMLElement | null;
   const q = t.closest('[data-q]') as HTMLElement | null;
+  const tbl = t.closest('[data-tbl]') as HTMLElement | null;
+  const env = t.closest('[data-env]') as HTMLElement | null;
   const op = t.closest('[data-open]') as HTMLElement | null;
   const jm = t.closest('[data-joinmatch]') as HTMLElement | null;
   const ff = t.closest('[data-forfeit]') as HTMLElement | null;
@@ -988,6 +999,20 @@ ui.addEventListener('click', (e) => {
   if (pl) { audio.click(); cfg.maxPlayers = Number(pl.dataset.players) as 2 | 3 | 4; return create(); }
   if (tm) { audio.click(); cfg.teamMode = tm.dataset.team as TeamMode; fixCfg(); return create(); }
   if (bo) { audio.click(); cfg.bestOf = Number(bo.dataset.bo) as 1 | 3 | 5; return create(); }
+  if (tbl) {
+    audio.click();
+    scene.setTable(tbl.dataset.tbl!);
+    LS.set('vigo.table', scene.tableId);
+    tbl.parentElement?.querySelectorAll('.sw').forEach((c) => c.classList.toggle('on', c === tbl));
+    return;
+  }
+  if (env) {
+    audio.click();
+    scene.setEnv(env.dataset.env!);
+    LS.set('vigo.env', scene.envId);
+    env.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === env));
+    return;
+  }
   if (q) {
     audio.click();
     quality = q.dataset.q as Quality;
@@ -1199,6 +1224,8 @@ window.addEventListener('pointerdown', () => audio.unlock(), { once: false, pass
 // ============ khởi động ============
 if ((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) document.documentElement.classList.add('native');
 scene.setQuality(quality);
+scene.setTable(LS.get('vigo.table') || 'classic');
+scene.setEnv(LS.get('vigo.env') || 'lounge');
 scene.start();
 scene.setCamMode('cinema');
 scene.startCelebration();
