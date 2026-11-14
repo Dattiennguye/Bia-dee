@@ -36,7 +36,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // A: kéo đặt bi (đã tự đặt), bấm xong đặt bi, ngắm, đánh
   await A.click('#placebtn');
   await sleep(300);
-  await A.click('#shootbtn');
+  await A.evaluate(() => window.__vigo.act('shoot'));
   await sleep(1500);
   await B.screenshot({ path: S + '14_shot_B_mid.png' });
   await A.screenshot({ path: S + '15_shot_A_mid.png' });

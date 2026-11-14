@@ -14,7 +14,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.waitForFunction(() => window.__vigo.screen === 'game', null, { timeout: 30000 });
   await sleep(4500);
   await p.click('#placebtn'); await sleep(200);
-  await p.click('#shootbtn');
+  await p.evaluate(() => window.__vigo.act('shoot'));
   // chờ máy đánh và đến lượt mình lại
   await p.waitForFunction(() => { const g = window.__vigo.room && window.__vigo.room.game; return g && g.currentSeat === 0 && !window.__vigo.scene.playing && g.phase === 'playing' && !g.breakShot; }, null, { timeout: 90000, polling: 500 });
   const info = await p.evaluate(() => ({ seat: window.__vigo.room.game.currentSeat, msg: window.__vigo.room.game.message, remaining: window.__vigo.room.game.balls.filter((b) => !b.pocketed).length }));

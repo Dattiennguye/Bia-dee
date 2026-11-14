@@ -37,6 +37,9 @@ jobs:
           MANIFEST=android/app/src/main/AndroidManifest.xml
           sed -i 's|<activity|<activity android:screenOrientation="sensorLandscape"|' "$MANIFEST"
           grep -n "screenOrientation" "$MANIFEST"
+          # Toàn màn hình, tai thỏ, tần số quét cao
+          cp android-patch/MainActivity.java android/app/src/main/java/vn/vigo/billiardsparty/MainActivity.java
+          grep -n "SHORT_EDGES" android/app/src/main/java/vn/vigo/billiardsparty/MainActivity.java
       - name: Build APK
         working-directory: GameClient/android
         run: ./gradlew assembleDebug --no-daemon

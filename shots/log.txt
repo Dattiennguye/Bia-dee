@@ -1,0 +1,1 @@
+{"calls":64,"triangles":28694,"dpr":1,"fps":6,"hz":60} []

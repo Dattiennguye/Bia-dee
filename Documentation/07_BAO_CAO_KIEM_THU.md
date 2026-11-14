@@ -53,3 +53,7 @@ Script: `Tests/ui/` (hướng dẫn chạy trong `Tests/ui/README.md`).
 1. Bật GitHub Actions, đặt biến `SERVER_URL`, chạy *Build Android APK*.
 2. Triển khai máy chủ (tài liệu 06, mục A).
 3. Thực hiện 5 bài kiểm thử nghiệm thu trên thiết bị thật và báo lại lỗi (nếu có) để sửa tiếp.
+
+## Bổ sung v1.1
+- 77 test tự động (vitest) đạt; `tsc` sạch; Tests/ui/pull-shot.cjs (kéo 50% rồi về = huỷ; kéo 56% rồi thả = đánh) đạt; two-players đạt, không lỗi JS.
+- **Chưa thể kiểm chứng trong sandbox**: FPS thật trên điện thoại (sandbox chỉ có dựng hình phần mềm), hiển thị tai thỏ thật, bước Gradle của APK. Cần thử trên máy thật.

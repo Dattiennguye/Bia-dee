@@ -17,13 +17,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // kéo chuột để ngắm
   await p.mouse.move(500, 300); await p.mouse.down(); await p.mouse.move(640, 280); await p.mouse.up();
   for (const cam of ['top', 'shoot', 'free']) {
-    await p.click(`[data-cam="${cam}"]`); await sleep(2500);
+    await p.evaluate((c) => window.__vigo.scene.setCamMode(c), cam); await sleep(2500);
     await p.screenshot({ path: S + `30_cam_${cam}.png` });
   }
-  await p.click('[data-cam="cinema"]'); await sleep(500);
-  await p.click('[data-cam="persp"]'); await sleep(1500);
-  await p.click('#shootbtn'); await sleep(900);
-  await p.click('[data-cam="cinema"]'); await sleep(1800);
+  await p.evaluate(() => window.__vigo.scene.setCamMode('cinema')); await sleep(500);
+  await p.evaluate(() => window.__vigo.scene.setCamMode('persp')); await sleep(1500);
+  await p.evaluate(() => window.__vigo.act('shoot')); await sleep(900);
+  await p.evaluate(() => window.__vigo.scene.setCamMode('cinema')); await sleep(1800);
   await p.screenshot({ path: S + '31_cinema_shot.png' });
   console.log('errors', p.errs);
   await browser.close();

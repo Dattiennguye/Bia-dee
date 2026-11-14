@@ -49,3 +49,11 @@ Trên (top-down) · 3D (nghiêng, nhìn từ phía ghế của bạn) · Sau cơ
 
 ## Tối ưu
 Chất lượng thấp/trung bình/cao (độ phân giải, bóng đổ); menu hạn chế ~20 FPS và tạm dừng khi ẩn ứng dụng để tiết kiệm pin; hỗ trợ safe-area (tai thỏ), Full HD và nhiều tỉ lệ màn hình.
+
+## Cập nhật v1.1 — giao diện điều khiển kiểu game bi-a AAA
+- **Đánh bằng kéo–thả**: cần lực ở mép phải; chạm vào, kéo xuống để lấy đà (cần trên bàn lùi theo), thả tay để đánh. Kéo về sát đỉnh rồi thả = huỷ. Không còn nút ĐÁNH (PC vẫn dùng Space/Enter).
+- **Ngắm**: vuốt ngang trên bàn để xoay (chậm = tinh, nhanh = xoay nhiều); thanh tinh chỉnh ở giữa dưới; chuột PC vẫn trỏ trực tiếp.
+- **Bố cục**: thẻ người chơi nghiêng + đồng hồ (trên trái), khay bi còn lại (giữa trên), góc nhìn/âm thanh (trên phải), menu + bản đồ mini (dưới trái), bi xoáy (dưới phải).
+- **Màn hình khuyết/tai thỏ**: app vẽ toàn màn hình (`SHORT_EDGES`), ẩn thanh hệ thống, HUD tự chừa lề an toàn.
+- **Đồ họa**: lỗ bàn thật (cắt hình học), khung gỗ có vân, viền đồng, bóng tiếp xúc, đường ngắm nét.
+- **Hiệu năng**: ~64 draw call, ~29k tam giác; chế độ "Tự động" hạ/nâng độ phân giải để giữ 60–120 FPS, ưu tiên tần số quét cao nhất của máy.
