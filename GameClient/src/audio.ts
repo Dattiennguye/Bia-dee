@@ -2,18 +2,16 @@
  * Âm thanh: tiếng đánh/phá bi/rơi lỗ dùng mẫu thật (public/sfx, cắt từ file "pool_break" của người dùng),
  * phần còn lại tạo bằng WebAudio.
  */
+import { music } from './music';
 import { LS } from './net';
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private sfxGain: GainNode | null = null;
-  private musicGain: GainNode | null = null;
-  /** Nhạc nền đã tắt hẳn — chờ người dùng gửi file nhạc */
-  musicVol = 0;
+  /** Âm lượng nhạc nền (0..1), do music.ts dùng */
+  musicVol = Number(LS.get('vigo.music') ?? '0.5');
   sfxVol = Number(LS.get('vigo.sfx') ?? '0.8');
-  private musicOn = false;
-  private musicTimer: number | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private step = 0;
   private samples: Record<string, AudioBuffer> = {};
@@ -62,9 +60,6 @@ class AudioEngine {
     this.sfxGain = this.ctx.createGain();
     this.sfxGain.gain.value = this.sfxVol;
     this.sfxGain.connect(this.master);
-    this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = this.musicVol * 0.35;
-    this.musicGain.connect(this.master);
     const len = this.ctx.sampleRate * 0.5;
     this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
@@ -72,7 +67,11 @@ class AudioEngine {
     void this.loadSamples();
   }
 
-  setMusic(_v: number): void { /* tắt nhạc nền */ }
+  setMusic(v: number): void {
+    this.musicVol = v;
+    LS.set('vigo.music', String(v));
+    music.setVolume(v);
+  }
 
   setSfx(v: number): void {
     this.sfxVol = v;
@@ -175,43 +174,6 @@ class AudioEngine {
   startGame(): void {
     if (!this.ctx) return;
     [392, 523, 659].forEach((n, i) => this.tone(n, 0.25, 'triangle', 0.35, this.sfxGain!, i * 0.1));
-  }
-
-  // ---- nhạc nền tự sinh: giai điệu vui nhộn đơn giản ----
-  private startMusic(): void {
-    if (this.musicOn || !this.ctx) return;
-    this.musicOn = true;
-    const chords = [
-      [261.6, 329.6, 392.0],
-      [220.0, 261.6, 329.6],
-      [174.6, 220.0, 261.6],
-      [196.0, 246.9, 392.0],
-    ];
-    const melody = [0, 2, 1, 2, 0, 1, 2, 1, 2, 1, 0, 1, 2, 0, 1, 2];
-    const tick = () => {
-      if (!this.musicOn || !this.ctx) return;
-      const bar = Math.floor(this.step / 8) % chords.length;
-      const ch = chords[bar];
-      const i = this.step % 8;
-      const dest = this.musicGain!;
-      if (i === 0) {
-        this.tone(ch[0] / 2, 0.9, 'sine', 0.5, dest);
-      }
-      if (i % 2 === 0) {
-        const n = ch[melody[this.step % melody.length]] * 2;
-        this.tone(n, 0.22, 'triangle', 0.22, dest);
-      }
-      if (i === 4) this.tone(ch[0] / 2, 0.5, 'sine', 0.35, dest);
-      if (i % 4 === 2) this.noise(0.04, 0.0, 8000, 1, 0, 'highpass');
-      this.step++;
-    };
-    this.musicTimer = window.setInterval(tick, 260);
-  }
-
-  private stopMusic(): void {
-    this.musicOn = false;
-    if (this.musicTimer) clearInterval(this.musicTimer);
-    this.musicTimer = null;
   }
 }
 

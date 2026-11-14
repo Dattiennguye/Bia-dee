@@ -2,6 +2,7 @@ import './styles.css';
 import { Net, LS, normalizeServer } from './net';
 import { audio } from './audio';
 import { ic } from './icons';
+import { music } from './music';
 import { BilliardScene, ballColor, ENVS, TABLE_THEMES, type CamMode, type Quality } from './scene';
 import { initialBalls } from '@gameserver/rack';
 import {
@@ -111,6 +112,7 @@ function go(s: Screen): void {
   }
   const fn: Record<Screen, () => void> = { splash, main, create, join, lobby, game, result: () => {}, tcreate, tlist, tbracket, settings, help, themes };
   fn[s]();
+  music.set(s === 'game' ? 'game' : 'menu');
   updateBanner();
 }
 
@@ -319,6 +321,7 @@ function bindGauge(): void {
   g.addEventListener('pointerdown', (e) => {
     if (!isMyTurn() || placing || gaugeDrag) return;
     audio.unlock();
+  music.unlock();
     g.setPointerCapture(e.pointerId);
     gaugeDrag = { id: e.pointerId, y0: e.clientY - scene.aim.power * span(), moved: false, tick: 0 };
     g.classList.add('drag');
@@ -734,6 +737,7 @@ function setCam(m: CamMode): void {
 // ============ kết quả ============
 function showResult(m: Extract<ServerMsg, { t: 'game.over' }>): void {
   screen = 'result';
+  music.set('result');
   room = m.room;
   const mine = m.winnerTeam === myTeam();
   const tourRoom = !!room.config.tournament;
@@ -866,6 +870,7 @@ function settings(): void {
   ui.innerHTML = `<div class="screen bg">${backBtn('main')}
     <div class="panel col" style="align-items:stretch"><h2>${ic('gear', 22)} Cài đặt</h2>
       <div><label class="lbl">Biệt danh (không cần tài khoản)</label><input id="sname" maxlength="16" value="${esc(net.name)}" placeholder="Biệt danh của bạn" /></div>
+      <div><label class="lbl">Nhạc nền</label><input class="range" type="range" id="vmusic" min="0" max="1" step="0.05" value="${audio.musicVol}" /></div>
       <div><label class="lbl">Âm thanh hiệu ứng</label><input class="range" type="range" id="vsfx" min="0" max="1" step="0.05" value="${audio.sfxVol}" /></div>
       <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
       ${themePicker()}
@@ -873,6 +878,7 @@ function settings(): void {
       <div class="pmeta" style="margin-top:4px">Trạng thái: ${net.status === 'online' ? '🟢 đã kết nối' : net.status === 'offline' ? '🔴 ngoại tuyến' : '🟡 đang kết nối'} ${net.lastError && net.status !== 'online' ? '· ' + esc(net.lastError) : ''}</div></div>
       <button class="btn gold block" data-act="savesettings">LƯU</button>
     </div></div>`;
+  el<HTMLInputElement>('#vmusic')!.addEventListener('input', (e) => { audio.unlock(); music.unlock(); audio.setMusic(Number((e.target as HTMLInputElement).value)); });
   el<HTMLInputElement>('#vsfx')!.addEventListener('input', (e) => { audio.unlock(); audio.setSfx(Number((e.target as HTMLInputElement).value)); audio.click(); });
 }
 
@@ -953,7 +959,7 @@ function act(a: string, node?: HTMLElement): void {
     case 'shoot': shoot(); break;
     case 'pause': pauseMenu(); break;
     case 'camtoggle': { const cl = el('#camlist'); if (cl) cl.hidden = !cl.hidden; break; }
-    case 'mute': { const off = audio.sfxVol > 0; audio.setSfx(off ? 0 : 0.8); const b = el('#mutebtn'); if (b) b.innerHTML = off ? ic('mute') : ic('vol'); break; }
+    case 'mute': { const off = audio.sfxVol > 0 || audio.musicVol > 0; audio.setSfx(off ? 0 : 0.8); audio.setMusic(off ? 0 : 0.5); const b = el('#mutebtn'); if (b) b.innerHTML = off ? ic('mute') : ic('vol'); break; }
     case 'placebtn': placing = !placing; updateControls(); break;
     case 'resume': ui.querySelector('.pausebox')?.remove(); break;
     case 'savesettings': {
@@ -1245,10 +1251,10 @@ function updateBanner(): void {
 
 window.addEventListener('online', () => { updateBanner(); net.nudge(); });
 window.addEventListener('offline', updateBanner);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) net.nudge(); });
+document.addEventListener('visibilitychange', () => { music.pauseAll(document.hidden); if (!document.hidden) net.nudge(); });
 window.addEventListener('resize', () => scene.resize());
 window.addEventListener('orientationchange', () => setTimeout(() => scene.resize(), 200));
-window.addEventListener('pointerdown', () => audio.unlock(), { once: false, passive: true });
+window.addEventListener('pointerdown', () => { audio.unlock(); music.unlock(); }, { once: false, passive: true });
 
 // ============ khởi động ============
 if ((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) document.documentElement.classList.add('native');

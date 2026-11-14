@@ -67,3 +67,9 @@ Chất lượng thấp/trung bình/cao (độ phân giải, bóng đổ); menu h
 - Góc nhìn: 3D đặt gần bàn hơn; **vuốt 2 ngón** (hoặc giữ chuột phải) để xoay/nghiêng trái-phải-lên-xuống, **chụm 2 ngón / lăn chuột** để zoom, nhấp đúp để về mặc định. Từ góc "trên xuống" vuốt sẽ tự chuyển sang 3D. Đèn trần tự ẩn khi camera ở trên cao nên không còn che bàn.
 - Đồ họa sắc nét hơn: luôn bật khử răng cưa, texture nỉ/gỗ/bi độ phân giải cao hơn, bóng đổ nhẹ dưới chân băng.
 - Nhạc nền đã tắt hoàn toàn (chờ file nhạc của người dùng). Chỉ còn tiếng hiệu ứng.
+
+## v1.5 — Nhạc nền (6 bài do người dùng cung cấp, GameClient/public/music, nén 80 kbps)
+- Menu/phòng chờ/giải đấu: "lovely garden", "play time fun" (xen kẽ).
+- Đang chơi: "lofi gaming", "gaming" (Atlas Audio), "game music" (Sub Clair) — âm lượng chỉ 55% để không lấn tiếng bi.
+- Màn hình kết quả: "gaming rock".
+- Chuyển ngữ cảnh mờ dần ~1 giây, hết bài tự sang bài kế, tạm dừng khi thoát ra màn hình khác của điện thoại. Có thanh chỉnh nhạc nền trong Cài đặt; nút loa tắt/bật cả nhạc và hiệu ứng.
