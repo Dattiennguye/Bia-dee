@@ -62,3 +62,7 @@ Script: `Tests/ui/` (hướng dẫn chạy trong `Tests/ui/README.md`).
 - Vật lý: ma sát lăn 0.035→0.012 (bi 1 m/s lăn ~4 m, sát thực tế), đường cong lực v = 8.5·p^1.7, thêm "răng lỗ" (mũi băng bao miệng lỗ làm bi nảy) và miệng lỗ mở thật; bot dùng đường cong lực mới. 80 test đạt.
 - Âm thanh: dùng mẫu thật từ file người dùng cung cấp (phá bi, đánh bi, rơi lỗ) trong GameClient/public/sfx.
 - UI: menu thu nhỏ theo chiều cao màn hình (zoom), thông báo nhỏ/tự mờ, bỏ nút "Đặt bi cái" (chạm vào bi cái để đặt lại), bộ icon SVG, góc nhìn "Sau cơ" thấp hơn và tự lùi lên cao khi bi lăn.
+
+## v1.6
+- `npm test` 80/80, `npm run typecheck` sạch, vite build OK. Playwright (swiftshader): cửa hàng, emote (cả phản ứng của máy), đèn tối/chuẩn/sáng, nhìn từ trên, cú đánh với vệt hiệu ứng — không lỗi JS.
+- Chưa kiểm chứng: FPS thật trên điện thoại, hiển thị vệt hiệu ứng trên GPU thật, build Gradle.

@@ -4,6 +4,7 @@ import { audio } from './audio';
 import { ic } from './icons';
 import { music } from './music';
 import { BilliardScene, ballColor, ENVS, TABLE_THEMES, type CamMode, type Quality } from './scene';
+import { AVATARS, CUES, FXS, EMOTES, avatarHtml, cuePreviewCss, loadProfile, saveProfile, hex as hexC } from './cosmetics';
 import { initialBalls } from '@gameserver/rack';
 import {
   TABLE,
@@ -27,6 +28,9 @@ const MODE_INFO: Record<GameMode, { name: string; desc: string }> = {
 };
 
 const net = new Net();
+let prof = loadProfile();
+net.prof = prof;
+let lamp = (() => { try { const j = JSON.parse(LS.get('vigo.lamp') || ''); return { level: Math.min(1.8, Math.max(0.3, +j.level || 1)), tone: Math.min(1, Math.max(-1, +j.tone || 0)) }; } catch { return { level: 1, tone: 0 }; } })();
 const ui = document.getElementById('ui') as HTMLElement;
 const canvas = document.getElementById('gl') as HTMLCanvasElement;
 const toastBox = document.getElementById('toast') as HTMLElement;
@@ -40,7 +44,7 @@ try {
   throw e;
 }
 
-type Screen = 'splash' | 'main' | 'create' | 'join' | 'lobby' | 'game' | 'result' | 'tcreate' | 'tlist' | 'tbracket' | 'settings' | 'help' | 'themes';
+type Screen = 'splash' | 'main' | 'create' | 'join' | 'lobby' | 'game' | 'result' | 'tcreate' | 'tlist' | 'tbracket' | 'settings' | 'help' | 'themes' | 'shop';
 let screen: Screen = 'splash';
 let room: RoomSnapshot | null = null;
 let tour: TournamentSnapshot | null = null;
@@ -69,6 +73,9 @@ const hex6 = (n: number) => '#' + n.toString(16).padStart(6, '0');
 /** Chọn bàn và không gian xung quanh (xem trước ngay trên cảnh nền) */
 function themePicker(): string {
   return `<div><label class="lbl">Bàn bi-a</label><div class="swatches">${TABLE_THEMES.map((t) => `<button class="sw ${scene.tableId === t.id ? 'on' : ''}" data-tbl="${t.id}" title="${t.name}" style="--a:${hex6(t.felt)};--b:${hex6(t.wood === 0xffffff ? 0x6e3a1f : t.wood)};--c:${hex6(t.brass)}"><i></i><span>${t.name}</span></button>`).join('')}</div></div>
+  <div><label class="lbl">Đèn bàn · độ sáng</label><div class="lamprow"><span>🌙</span><input class="range" type="range" data-lamp="level" min="0.3" max="1.8" step="0.05" value="${lamp.level}" /><span>☀️</span></div>
+  <label class="lbl" style="margin-top:8px">Tông đèn</label><div class="lamprow"><span>❄️</span><input class="range" type="range" data-lamp="tone" min="-1" max="1" step="0.05" value="${lamp.tone}" /><span>🔥</span></div>
+  <div class="chips" style="margin-top:8px">${[['Tối', 0.55, 0.2], ['Dịu', 0.8, 0.3], ['Chuẩn', 1, 0], ['Sáng', 1.35, 0], ['Rất sáng', 1.7, -0.2]].map(([n, l, t]) => `<button class="chip" data-lampset="${l}|${t}">${n}</button>`).join('')}</div></div>
   <div><label class="lbl">Không gian xung quanh</label><div class="chips">${ENVS.map((e) => `<button class="chip ${scene.envId === e.id ? 'on' : ''}" data-env="${e.id}">${e.name}</button>`).join('')}</div></div>`;
 }
 
@@ -99,7 +106,7 @@ function go(s: Screen): void {
   scene.menuMode = s !== 'game' && s !== 'result';
   clearInterval(timerHandle);
   clearInterval(miniHandle);
-  const menuBg = ['splash', 'main', 'create', 'join', 'lobby', 'settings', 'help', 'tcreate', 'tlist', 'tbracket', 'themes'].includes(s);
+  const menuBg = ['splash', 'main', 'create', 'join', 'lobby', 'settings', 'help', 'tcreate', 'tlist', 'tbracket', 'themes', 'shop'].includes(s);
   if (menuBg) {
     if (!scene.playing) {
       scene.aim.visible = false;
@@ -110,7 +117,7 @@ function go(s: Screen): void {
   } else {
     scene.stopCelebration();
   }
-  const fn: Record<Screen, () => void> = { splash, main, create, join, lobby, game, result: () => {}, tcreate, tlist, tbracket, settings, help, themes };
+  const fn: Record<Screen, () => void> = { splash, main, create, join, lobby, game, result: () => {}, tcreate, tlist, tbracket, settings, help, themes, shop };
   fn[s]();
   music.set(s === 'game' ? 'game' : 'menu');
   updateBanner();
@@ -152,6 +159,7 @@ function main(): void {
       <button class="btn cyan" data-act="join"><span class="ic">${ic('key', 26)}</span>THAM GIA PHÒNG</button>
       <button class="btn" data-act="tlist"><span class="ic">${ic('trophy', 26)}</span>GIẢI ĐẤU</button>
       <div class="row center">
+        <button class="btn ghost small" data-act="shop">${ic('palette', 18)} Cửa hàng</button>
         <button class="btn ghost small" data-act="themes">${ic('palette', 18)} Giao diện</button>
         <button class="btn ghost small" data-act="help">${ic('book', 18)} Hướng dẫn</button>
         <button class="btn ghost small" data-act="settings">${ic('gear', 18)} Cài đặt</button>
@@ -171,6 +179,29 @@ function themes(): void {
   scene.stopCelebration();
   scene.setCamMode('persp');
   scene.setBalls(initialBalls('eightball', 7).map((b) => ({ id: b.id, x: b.x, y: b.y, pocketed: b.pocketed })));
+}
+
+let shopTab: 'c' | 'a' | 'f' = 'c';
+function applyCosmetics(p: { a: number; c: number; f: number }): void { scene.setCueSkin(p.c); scene.setFx(p.f); }
+const profOfSeat = (seat: number) => room?.players.find((x) => x.seat === seat)?.prof ?? prof;
+
+/** Cửa hàng: gậy, avatar, hiệu ứng đánh (chọn miễn phí, lưu trên máy và gửi cho đối thủ) */
+function shop(): void {
+  const tabs = [['c', 'Gậy'], ['a', 'Avatar'], ['f', 'Hiệu ứng']] as const;
+  let items = '';
+  if (shopTab === 'c') items = CUES.map((c, i) => `<button class="shopitem ${prof.c === i ? 'on' : ''}" data-pick="c:${i}">${cuePreviewCss(c)}<b>${c.name}</b><small>${c.desc}</small></button>`).join('');
+  else if (shopTab === 'a') items = AVATARS.map((a, i) => `<button class="shopitem av ${prof.a === i ? 'on' : ''}" data-pick="a:${i}">${avatarHtml(i, 52)}<b>${a.name}</b></button>`).join('');
+  else items = FXS.map((f, i) => `<button class="shopitem ${prof.f === i ? 'on' : ''}" data-pick="f:${i}"><div class="fxpv" style="--c1:${hexC(f.colors[0])};--c2:${hexC(f.colors[f.colors.length - 1])};${f.aim === 'rainbow' ? '--c1:#ff5fa8;--c2:#57d6ff' : ''}"></div><b>${f.name}</b><small>${f.desc}</small></button>`).join('');
+  ui.innerHTML = `<div class="screen sheet">${backBtn('main')}
+    <div class="sheetbox shopbox"><div class="shophead">${avatarHtml(prof.a, 40)}<h2>${ic('palette', 22)} Cửa hàng</h2></div>
+      <div class="chips">${tabs.map(([k, n]) => `<button class="chip ${shopTab === k ? 'on' : ''}" data-pick="tab:${k}">${n}</button>`).join('')}</div>
+      <div class="shopgrid">${items}</div>
+      <button class="btn gold" data-act="main">Xong</button></div></div>`;
+  applyCosmetics(prof);
+  scene.stopCelebration();
+  scene.setCamMode('persp');
+  scene.setBalls(initialBalls('eightball', 7).map((b) => ({ id: b.id, x: b.x, y: b.y, pocketed: b.pocketed })));
+  scene.aim.visible = true; scene.aim.guide = false; scene.aim.angle = 0.1; scene.aim.power = 0.35;
 }
 
 function create(): void {
@@ -252,9 +283,9 @@ function lobby(): void {
 }
 
 // ---------- GAME ----------
-const CAM_LIST: CamMode[] = ['top', 'persp', 'shoot', 'free', 'cinema'];
+const CAM_LIST: CamMode[] = ['shoot', 'top', 'free'];
 const CAM_ICON: Record<CamMode, string> = { top: ic('camTop'), persp: ic('cam3d'), shoot: ic('camCue'), free: ic('camFree'), cinema: ic('camFilm') };
-const CAM_NAME: Record<CamMode, string> = { top: 'Trên xuống', persp: '3D', shoot: 'Sau cơ', free: 'Tự do', cinema: 'Phim' };
+const CAM_NAME: Record<CamMode, string> = { top: 'Trên xuống', persp: 'Tự do', shoot: 'Sau cơ', free: 'Tự do', cinema: 'Sau cơ' };
 let gaugeDrag: null | { id: number; y0: number; moved: boolean; tick: number } = null;
 let miniHandle = 0;
 let msgFade = 0;
@@ -268,12 +299,14 @@ function game(): void {
     <div class="tr">
       <button class="rbtn" data-act="camtoggle" id="cambtn" aria-label="Góc nhìn"><span id="camicon">${CAM_ICON[scene.camMode]}</span></button>
       <button class="rbtn" data-act="themeovl" aria-label="Giao diện">${ic('palette')}</button>
+      <button class="rbtn" data-act="emotebar" aria-label="Biểu cảm">😀</button>
       <button class="rbtn" data-act="mute" id="mutebtn" aria-label="Âm thanh">${audio.sfxVol > 0 ? ic('vol') : ic('mute')}</button>
     </div>
     <div class="camlist" id="camlist" hidden>
       ${CAM_LIST.map((m, i) => `<button class="camitem ${scene.camMode === m ? 'on' : ''}" data-cam="${m}" title="${i + 1}"><span class="i">${CAM_ICON[m]}</span>${CAM_NAME[m]}</button>`).join('')}
     </div>
     <div class="msgbar" id="msgbar" hidden></div>
+    <div class="emotebar" id="emotebar" hidden>${EMOTES.map((e, i) => `<button data-emote="${i}">${e}</button>`).join('')}</div>
     <div class="bl"><button class="rbtn menu" data-act="pause" aria-label="Menu">${ic('menu')}</button><canvas class="mini" id="mini" width="176" height="92"></canvas></div>
     <div class="hint" id="hint"></div>
     <div class="dial" id="dial"><span class="dl">◀</span><div class="dialtrack" id="dialtrack"></div><span class="dl">▶</span></div>
@@ -472,7 +505,7 @@ function updateHud(): void {
       const turn = g.currentSeat === p.seat && g.phase !== 'over';
       const me = p.id === net.playerId;
       return `<div class="cap ${turn ? 'turn' : ''} ${p.connected ? '' : 'off'} ${compact && !turn ? 'mini' : ''}" style="--pc:${col}"><div class="capin">
-        <div class="av" style="background:${col}">${esc(p.name.slice(0, 1).toUpperCase())}</div>
+        <div class="avwrap" data-seat="${p.seat}">${avatarHtml((p.prof ?? (me ? prof : undefined))?.a ?? 0, 30)}<span class="ebub" id="eb${p.seat}" hidden></span></div>
         <div class="cn"><b>${esc(p.name)}${me ? ' ★' : ''}${!p.connected ? ' ⚠' : ''}</b><small>${esc(capSub(p, g))}</small></div>
         ${turn ? '<div class="ctime" id="timer">–</div>' : ''}</div></div>`;
     }).join('');
@@ -554,6 +587,7 @@ function refreshTurn(): void {
     powerSet(0);
     if (!LS.get('vigo.tut')) { toast('👆 Vuốt ngang để xoay · kéo cần lực xuống rồi THẢ TAY để đánh', '', 4200); LS.set('vigo.tut', '1'); }
   }
+  if (!scene.playing) applyCosmetics(profOfSeat(g.currentSeat));
   lastTurnSeat = my ? g.currentSeat : -1;
   if (!my) { placing = false; }
   updateControls();
@@ -602,7 +636,26 @@ function cuePlacementValid(x: number, y: number): boolean {
 // ============ đầu vào trên bàn ============
 const pointers = new Map<number, { x: number; y: number }>();
 let pinchDist = 0;
-let aimDrag: null | { touch: boolean; prevAng: number } = null;
+let aimDrag: null | { touch: boolean; prevAng: number; x: number } = null;
+let edgeRaf = 0;
+
+/** Giữ ngón ở sát mép trái/phải màn hình thì hướng ngắm tiếp tục xoay liên tục (vuốt dài không bị hết màn hình) */
+function edgeSpin(last: number): void {
+  const tick = (ts: number) => {
+    if (!aimDrag || !aimDrag.touch) { edgeRaf = 0; return; }
+    const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0.016;
+    last = ts;
+    const w = canvas.clientWidth || window.innerWidth;
+    const zone = w * 0.2;
+    const x = aimDrag.x;
+    let k = 0;
+    if (x < zone) k = -(zone - x) / zone;
+    else if (x > w - zone) k = (x - (w - zone)) / zone;
+    if (k !== 0) { scene.aim.angle += Math.sign(k) * Math.pow(Math.abs(k), 1.4) * 1.25 * dt; sendAim(); }
+    edgeRaf = requestAnimationFrame(tick);
+  };
+  edgeRaf = requestAnimationFrame(tick);
+}
 
 function tablePoint(ev: PointerEvent): { x: number; y: number } | null {
   const r = canvas.getBoundingClientRect();
@@ -649,8 +702,9 @@ canvas.addEventListener('pointerdown', (e) => {
   const c = scene.ballPos(0);
   // bi cái đang "trong tay": chạm vào chính bi cái để đặt lại
   if (room?.game?.ballInHand && Math.hypot(p.x - c.x, p.y - c.y) < 0.07) { placing = true; updateControls(); return; }
-  aimDrag = { touch, prevAng: Math.atan2(p.y - c.y, p.x - c.x) };
+  aimDrag = { touch, prevAng: Math.atan2(p.y - c.y, p.x - c.x), x: e.clientX };
   if (!touch) aimTo(p, false);
+  else if (!edgeRaf) edgeSpin(0);
 });
 
 canvas.addEventListener('pointermove', (e) => {
@@ -684,7 +738,10 @@ canvas.addEventListener('pointermove', (e) => {
     if (aimDrag.touch) {
       // vuốt ngang để xoay hướng ngắm: chậm = tinh, nhanh = xoay nhiều
       const dx = e.clientX - prev.x;
-      scene.aim.angle += dx * (0.0016 + 0.00012 * Math.abs(dx));
+      aimDrag.x = e.clientX;
+      scene.aim.angle += dx * (0.0022 + 0.00014 * Math.abs(dx));
+      // sau cơ: vuốt dọc để nâng/hạ camera
+      if (scene.camMode === 'shoot') scene.orbitView(0, (e.clientY - prev.y) * 0.7);
       sendAim();
     } else aimTo(p, false);
   }
@@ -722,8 +779,8 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowUp') { powerSet(scene.aim.power + 0.03); sendAim(); }
   else if (e.key === 'ArrowDown') { powerSet(scene.aim.power - 0.03); sendAim(); }
   else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); shoot(); }
-  else if (['1', '2', '3', '4', '5'].includes(e.key)) setCam((['top', 'persp', 'shoot', 'free', 'cinema'] as CamMode[])[Number(e.key) - 1]);
-  else if (e.key === 'c' || e.key === 'C') { const order: CamMode[] = ['top', 'persp', 'shoot', 'free', 'cinema']; setCam(order[(order.indexOf(scene.camMode) + 1) % order.length]); }
+  else if (['1', '2', '3'].includes(e.key)) setCam(CAM_LIST[Number(e.key) - 1]);
+  else if (e.key === 'c' || e.key === 'C') { const order = CAM_LIST; setCam(order[(order.indexOf(scene.camMode) + 1) % order.length]); }
 });
 
 function setCam(m: CamMode): void {
@@ -889,8 +946,8 @@ function help(): void {
       <li><b>Ngắm:</b> kéo ngón tay (hoặc chuột) trên bàn để xoay hướng cơ. Dùng thanh <b>Tinh chỉnh</b> để chỉnh nhỏ. Vạch trắng là đường đi, vạch vàng là hướng bi bị đánh.</li>
       <li><b>Lực:</b> chạm cần ở mép phải, <b>kéo xuống</b> để lấy đà rồi <b>thả tay</b> để đánh. Kéo về lại đỉnh rồi thả = huỷ.</li>
       <li><b>Xoáy:</b> chạm vào quả bi trắng bên phải: <b>trên</b> = bi chạy theo, <b>dưới</b> = bi giật lùi, <b>trái/phải</b> = xoáy ngang. Nhấp đúp để về giữa.</li>
-      <li><b>Camera:</b> Trên (nhìn từ trên xuống), 3D, Sau cơ, Tự do (kéo để xoay, cuộn/chụm để zoom) và Phim (tự động theo cú đánh).</li>
-      <li><b>Phím tắt (PC):</b> ←/→ ngắm tinh, ↑/↓ lực, Space đánh, 1–5 đổi camera.</li>
+      <li><b>Camera:</b> Sau cơ (vuốt lên/xuống/trái/phải để nhìn quanh, chụm để zoom), Trên (nhìn từ trên xuống) và Tự do. Khi đánh, camera sau cơ giữ nguyên theo cơ.</li>
+      <li><b>Phím tắt (PC):</b> ←/→ ngắm tinh, ↑/↓ lực, Space đánh, 1–3 đổi camera.</li>
       <li><b>8 bi:</b> đánh hết nhóm của mình rồi bi số 8. <b>9 bi:</b> luôn chạm bi nhỏ nhất trước; bi 9 vào lỗ là thắng. <b>Rotation:</b> bi vào lỗ được điểm bằng số bi, đạt 61 điểm thắng.</li>
       <li><b>Phạm lỗi</b> (bi cái rơi lỗ, chạm sai bi, không chạm băng…): đối thủ được <b>đặt bi cái tự do</b>.</li>
       <li><b>Mất mạng?</b> Cứ mở lại game — bạn sẽ được đưa về đúng bàn đang chơi trong 60 giây.</li>
@@ -909,6 +966,8 @@ function act(a: string, node?: HTMLElement): void {
     case 'settings': go('settings'); break;
     case 'help': go('help'); break;
     case 'themes': go('themes'); break;
+    case 'shop': go('shop'); break;
+    case 'emotebar': { const b = el('#emotebar'); if (b) b.hidden = !b.hidden; break; }
     case 'themeovl': {
       ui.querySelector('.themeovl')?.remove();
       const d = document.createElement('div');
@@ -1014,8 +1073,18 @@ function pauseMenu(): void {
   ui.appendChild(d);
 }
 
+ui.addEventListener('input', (e) => {
+  const r = e.target as HTMLInputElement;
+  if (r.dataset?.lamp) { (lamp as Record<string, number>)[r.dataset.lamp] = Number(r.value); scene.setLamp(lamp.level, lamp.tone); LS.set('vigo.lamp', JSON.stringify(lamp)); }
+});
 ui.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
+  const ls = t.closest('[data-lampset]') as HTMLElement | null;
+  if (ls) { const [l, tn] = ls.dataset.lampset!.split('|').map(Number); lamp = { level: l, tone: tn }; scene.setLamp(l, tn); LS.set('vigo.lamp', JSON.stringify(lamp)); ui.querySelectorAll<HTMLInputElement>('[data-lamp]').forEach((r) => { r.value = String(lamp[r.dataset.lamp as 'level' | 'tone']); }); audio.click(); return; }
+  const em = t.closest('[data-emote]') as HTMLElement | null;
+  if (em) { net.send({ t: 'emote', e: Number(em.dataset.emote) }); el('#emotebar')?.setAttribute('hidden', ''); return; }
+  const sp = t.closest('[data-pick]') as HTMLElement | null;
+  if (sp) { audio.click(); const [k, v] = sp.dataset.pick!.split(':'); if (k === 'tab') shopTab = v as typeof shopTab; else { prof = { ...prof, [k]: Number(v) }; saveProfile(prof); net.setProfile(prof); applyCosmetics(prof); } return shop(); }
   const n = t.closest('[data-act]') as HTMLElement | null;
   const cam = t.closest('[data-cam]') as HTMLElement | null;
   const mode = t.closest('[data-mode]') as HTMLElement | null;
@@ -1082,6 +1151,7 @@ function onShotResult(m: ShotResultMsg): void {
   if (screen !== 'game') { screen = 'game'; game(); }
   const heading = room.players.find((p) => p.seat === m.seat)?.name ?? '';
   scene.setCamMode(scene.camMode);
+  applyCosmetics(profOfSeat(m.seat));
   scene.breakShot = !!room.game?.breakShot;
   scene.playShot(m, () => {
     if (!room) return;
@@ -1162,7 +1232,7 @@ net.onMessage((m) => {
       scene.stopCelebration();
       go('game');
       if (room.game) scene.setBalls(room.game.balls);
-      scene.setCamMode((LS.get('vigo.cam') as CamMode) || 'persp');
+      { const sv = LS.get('vigo.cam') as CamMode | null; scene.setCamMode(sv === 'top' || sv === 'free' ? sv : 'shoot'); const ci = el('#camicon'); if (ci) ci.innerHTML = CAM_ICON[scene.camMode]; }
       document.querySelectorAll<HTMLElement>('[data-cam]').forEach((b) => b.classList.toggle('on', b.dataset.cam === scene.camMode));
       scene.playIntro();
       audio.startGame();
@@ -1178,6 +1248,11 @@ net.onMessage((m) => {
         refreshTurn();
       });
       break;
+    case 'emote': {
+      const b = el('#eb' + m.seat);
+      if (b && EMOTES[m.e]) { b.textContent = EMOTES[m.e]; b.hidden = false; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); window.setTimeout(() => { b.hidden = true; }, 2200); }
+      break;
+    }
     case 'game.aim':
       if (screen === 'game' && !scene.playing) scene.otherAim = { angle: m.angle, power: m.power, seat: m.seat };
       break;
@@ -1241,6 +1316,7 @@ function updateBanner(): void {
   let err = false;
   if (!navigator.onLine) { txt = '📴 Không có Internet'; err = true; }
   else if (screen === 'splash') txt = '';
+  else if (net.local) txt = '';
   else if (st === 'reconnecting') txt = '🔄 Mất kết nối — đang thử lại…';
   else if (st === 'connecting') txt = '⏳ Đang kết nối máy chủ…';
   else if (st === 'offline') { txt = net.server ? '⚠️ Không kết nối được máy chủ' : '⚠️ Chưa cấu hình máy chủ — vào Cài đặt'; err = true; }
@@ -1261,6 +1337,8 @@ if ((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).
 scene.setQuality(quality);
 scene.setTable(LS.get('vigo.table') || 'classic');
 scene.setEnv(LS.get('vigo.env') || 'lounge');
+scene.setLamp(lamp.level, lamp.tone);
+applyCosmetics(prof);
 scene.start();
 scene.setCamMode('cinema');
 scene.startCelebration();

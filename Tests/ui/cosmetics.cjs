@@ -1,0 +1,35 @@
+// Kiểm tra cửa hàng, emote, đèn, vệt hiệu ứng. Chạy: OUT=./shots node Tests/ui/cosmetics.cjs
+const { chromium } = require('playwright');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  const S = process.env.OUT || './shots';
+  const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const p = await (await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true })).newPage(); p.setDefaultTimeout(60000);
+  const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+  await p.addInitScript(() => { localStorage.setItem('vigo.name', 'Thu'); localStorage.setItem('vigo.quality', 'low'); });
+  await p.goto('http://localhost:8099/');
+  await p.waitForFunction(() => window.__vigo && window.__vigo.net.status === 'online');
+  await sleep(1500);
+  await p.click('[data-act="splash"], body', { position: { x: 2, y: 2 } }).catch(() => {});
+  await sleep(500);
+  await p.click('[data-act="shop"]'); await sleep(2500);
+  await p.screenshot({ path: `${S}/c_shop_cue.png` });
+  await p.click('[data-pick="c:5"]'); await sleep(1500);
+  await p.screenshot({ path: `${S}/c_shop_galaxy.png` });
+  await p.click('[data-pick="tab:a"]'); await sleep(600); await p.screenshot({ path: `${S}/c_shop_avatar.png` });
+  await p.click('[data-pick="a:4"]');
+  await p.click('[data-pick="tab:f"]'); await sleep(600); await p.click('[data-pick="f:3"]'); await sleep(600); await p.screenshot({ path: `${S}/c_shop_fx.png` });
+  await p.click('[data-act="main"]:not(.back)').catch(() => p.click('.btn.gold')); await sleep(800);
+  await p.click('[data-act="quick"]');
+  await p.waitForFunction(() => window.__vigo.screen === 'game'); await sleep(4000);
+  await p.click('[data-act="emotebar"]'); await sleep(300);
+  await p.click('[data-emote="4"]'); await sleep(800);
+  await p.screenshot({ path: `${S}/c_game_emote.png` });
+  await p.click('[data-act="themeovl"]'); await sleep(500);
+  await p.evaluate(() => window.__vigo.scene.setLamp(0.4, 0.8)); await sleep(1200);
+  await p.screenshot({ path: `${S}/c_game_dark.png` });
+  await p.evaluate(() => window.__vigo.scene.setLamp(1.6, -0.5)); await sleep(1200);
+  await p.screenshot({ path: `${S}/c_game_bright.png` });
+  console.log('errs', JSON.stringify(errs), await p.evaluate(() => localStorage.getItem('vigo.p.c')));
+  await b.close();
+})().catch((e) => { console.error(e); process.exit(1); });

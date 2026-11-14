@@ -236,3 +236,27 @@ label.lbl { font-size: 13px; color: var(--muted); font-weight: 700; text-transfo
 .sheetbox h2 { font-size: 18px; display: flex; gap: 8px; align-items: center; }
 .sheetbox .btn { align-self: center; }
 .themeovl { z-index: 20; }
+
+/* ---- avatar, emote, cửa hàng, đèn ---- */
+.avt { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255,255,255,.35), 0 2px 6px rgba(0,0,0,.4); flex: none; }
+.avwrap { position: relative; display: flex; flex: none; }
+.ebub { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); font-size: 28px; line-height: 1; z-index: 30; pointer-events: none; filter: drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
+.ebub.pop { animation: ebpop .5s cubic-bezier(.2,1.6,.4,1); }
+@keyframes ebpop { from { transform: translateX(-50%) scale(.2); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+.emotebar { position: absolute; right: calc(64px + var(--sar)); top: calc(10px + var(--sat)); display: flex; flex-wrap: wrap; gap: 4px; max-width: 232px; padding: 6px; border-radius: 16px; background: rgba(12,8,28,.82); backdrop-filter: blur(8px); pointer-events: auto; z-index: 40; }
+.emotebar[hidden] { display: none; }
+.emotebar button { font-size: 24px; width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.08); border: 0; cursor: pointer; }
+.emotebar button:active { transform: scale(.88); }
+.lamprow { display: flex; align-items: center; gap: 8px; }
+.lamprow .range { flex: 1; }
+.shopbox { max-height: 60vh; overflow: auto; }
+.shophead { display: flex; align-items: center; gap: 10px; }
+.shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin: 8px 0; }
+.shopitem { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 14px; background: rgba(255,255,255,.06); border: 2px solid transparent; color: #fff; cursor: pointer; font: inherit; }
+.shopitem.on { border-color: var(--gold, #ffd34d); background: rgba(255,211,77,.14); }
+.shopitem b { font-size: 12px; } .shopitem small { font-size: 10px; opacity: .7; text-align: center; }
+.cuepv { display: flex; align-items: center; width: 100%; height: 14px; border-radius: 7px; overflow: hidden; margin: 10px 0 6px; }
+.cuepv i { display: block; height: 100%; }
+.cuepv .ct { width: 3%; } .cuepv .cs { width: 5%; } .cuepv .cr { width: 2%; } .cuepv .cb { flex: 1; } .cuepv .ce { width: 3%; background: #111; }
+.cuepv { transform: scaleX(-1); }
+.fxpv { width: 100%; height: 14px; border-radius: 7px; margin: 10px 0 6px; background: linear-gradient(90deg, transparent, var(--c1), var(--c2)); box-shadow: 0 0 10px var(--c1); }

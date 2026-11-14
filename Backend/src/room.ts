@@ -3,8 +3,11 @@
  * Máy chủ là nguồn xác nhận cuối cùng: mọi cú đánh đều được mô phỏng và kiểm luật tại đây.
  */
 import {
+  EMOTE_COUNT,
   FRAME_HZ,
+  PROFILE_COUNTS,
   type GameMode,
+  type Profile,
   type PlayerPublic,
   type RoomConfig,
   type RoomSnapshot,
@@ -28,6 +31,7 @@ export interface Session {
   conn: Conn | null;
   roomCode: string | null;
   lastSeen: number;
+  prof?: Profile;
 }
 
 export interface RoomOptions {
@@ -65,6 +69,8 @@ interface RoomPlayer {
   session: Session | null;
   left: boolean;
   graceTimer: ReturnType<typeof setTimeout> | null;
+  prof?: Profile;
+  lastEmote?: number;
 }
 
 export class Room {
@@ -135,6 +141,7 @@ export class Room {
         connected: p.connected,
         isBot: p.isBot,
         isHost: p.id === this.hostId,
+        prof: p.isBot ? p.prof : p.session?.prof,
       }));
   }
 
@@ -149,6 +156,16 @@ export class Room {
       game: this.game ? this.game.snapshot(this.turnDeadline, simulating || Date.now() < this.animUntil) : null,
       inviteUrl: `${this.opts.publicUrl}/invite/${this.code}`,
     };
+  }
+
+  /** Biểu cảm nhanh (giới hạn tốc độ) */
+  emote(playerId: string, e: number): void {
+    const p = this.activePlayers().find((x) => x.id === playerId);
+    if (!p || !Number.isInteger(e) || e < 0 || e >= EMOTE_COUNT) return;
+    const now = Date.now();
+    if (p.lastEmote && now - p.lastEmote < 1200) return;
+    p.lastEmote = now;
+    this.broadcast({ t: 'emote', seat: p.seat, e });
   }
 
   broadcast(msg: ServerMsg): void {
@@ -283,7 +300,8 @@ export class Room {
     const seat = this.freeSeat();
     if (seat < 0) return 'Phòng đã đầy';
     const n = this.players.filter((p) => p.isBot).length + 1;
-    this.players.push({ id: `bot${n}-${this.code}`, name: `Máy ${n}`, seat, isBot: true, connected: true, session: null, left: false, graceTimer: null });
+    const rnd = (k: number) => Math.floor(Math.random() * k);
+    this.players.push({ id: `bot${n}-${this.code}`, name: `Máy ${n}`, seat, isBot: true, connected: true, session: null, left: false, graceTimer: null, prof: { a: rnd(PROFILE_COUNTS.avatar), c: rnd(PROFILE_COUNTS.cue), f: rnd(PROFILE_COUNTS.fx) } });
     this.broadcast({ t: 'room.state', room: this.snapshot() });
     this.changed();
     return null;

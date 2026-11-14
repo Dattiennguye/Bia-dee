@@ -1,4 +1,4 @@
-import type { ClientMsg, GameMode, ServerMsg, TeamMode } from '@shared/protocol';
+import type { ClientMsg, GameMode, Profile, ServerMsg, TeamMode } from '@shared/protocol';
 import { LocalServer } from './local';
 
 export type NetStatus = 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline';
@@ -56,11 +56,18 @@ export class Net {
   private queue: ClientMsg[] = [];
   lastError = '';
   local: LocalServer | null = null;
+  prof: Profile | undefined;
+
+  setProfile(p: Profile): void {
+    this.prof = p;
+    if (this.status === 'online') this.send({ t: 'setProfile', prof: p });
+    this.local?.handle({ t: 'setProfile', prof: p });
+  }
 
   /** Bắt đầu ván offline với máy (không cần máy chủ) */
   startLocal(mode: GameMode, teamMode: TeamMode, maxPlayers: 2 | 3 | 4, bestOf: 1 | 3 | 5): void {
     this.local?.stop();
-    this.local = new LocalServer(this.name || 'Bạn', (m) => this.emit(m));
+    this.local = new LocalServer(this.name || 'Bạn', (m) => this.emit(m), this.prof);
     this.playerId = this.local.session.playerId;
     this.local.createAndStart(mode, teamMode, maxPlayers, bestOf);
   }
@@ -110,7 +117,7 @@ export class Net {
     }
     this.ws = ws;
     ws.onopen = () => {
-      ws.send(JSON.stringify({ t: 'auth', sessionId: this.sessionId || undefined, name: this.name || undefined }));
+      ws.send(JSON.stringify({ t: 'auth', sessionId: this.sessionId || undefined, name: this.name || undefined, prof: this.prof }));
     };
     ws.onmessage = (ev) => {
       let m: ServerMsg;

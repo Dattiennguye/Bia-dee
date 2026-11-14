@@ -2,14 +2,14 @@
  * Chế độ OFFLINE: chạy phòng chơi (cùng mã nguồn luật + vật lý với máy chủ) ngay trong ứng dụng,
  * để chơi với máy mà không cần Internet hay máy chủ.
  */
-import type { ClientMsg, GameMode, ServerMsg, TeamMode } from '@shared/protocol';
+import type { ClientMsg, GameMode, Profile, ServerMsg, TeamMode } from '@shared/protocol';
 import { Room, type Session } from '@backend/room';
 
 export class LocalServer {
   readonly session: Session;
   private room: Room | null = null;
 
-  constructor(name: string, private emit: (m: ServerMsg) => void) {
+  constructor(name: string, private emit: (m: ServerMsg) => void, prof?: Profile) {
     this.session = {
       sessionId: 'local',
       playerId: 'local-player',
@@ -17,6 +17,7 @@ export class LocalServer {
       conn: { send: (m) => queueMicrotask(() => this.emit(m)) },
       roomCode: null,
       lastSeen: Date.now(),
+      prof,
     };
   }
 
@@ -48,6 +49,13 @@ export class LocalServer {
         if (e) this.session.conn!.send({ t: 'error', code: 'bad_shot', message: e });
         break;
       }
+      case 'emote': {
+        r?.emote(this.session.playerId, Number(msg.e));
+        // máy phản ứng vui nhộn
+        if (r && Math.random() < 0.6) setTimeout(() => { const b = r.players.find((p) => p.isBot); if (b) r.emote(b.id, Math.floor(Math.random() * 10)); }, 900 + Math.random() * 900);
+        break;
+      }
+      case 'setProfile': this.session.prof = msg.prof; break;
       case 'game.aim': break; // không cần phát lại hướng ngắm trong chế độ một người
       case 'game.sync': r?.sync(this.session.playerId); break;
       case 'room.start': { const e = r?.start(this.session.playerId); if (e) this.err(e); break; }

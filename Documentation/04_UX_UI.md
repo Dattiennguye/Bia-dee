@@ -73,3 +73,10 @@ Chất lượng thấp/trung bình/cao (độ phân giải, bóng đổ); menu h
 - Đang chơi: "lofi gaming", "gaming" (Atlas Audio), "game music" (Sub Clair) — âm lượng chỉ 55% để không lấn tiếng bi.
 - Màn hình kết quả: "gaming rock".
 - Chuyển ngữ cảnh mờ dần ~1 giây, hết bài tự sang bài kế, tạm dừng khi thoát ra màn hình khác của điện thoại. Có thanh chỉnh nhạc nền trong Cài đặt; nút loa tắt/bật cả nhạc và hiệu ứng.
+
+## v1.6 — Camera sau cơ, đèn, cửa hàng
+- Camera còn 3 chế độ: Sau cơ (mặc định), Trên, Tự do. Đã bỏ Phim và 3D khỏi nút chọn.
+- Sau cơ: vuốt lên/xuống/trái/phải để nhìn quanh; khi đánh camera giữ nguyên theo cơ, không bay sang góc khác. Giữ ngón ở mép để xoay ngắm liên tục.
+- Đèn bàn: đèn chiếu (spot) chỉnh độ sáng + tông ấm/lạnh, 5 mức nhanh (Tối…Rất sáng), lưu `vigo.lamp`. Bóng mờ của cơ trên mặt bàn.
+- Cửa hàng: 13 gậy, 12 avatar, 9 hiệu ứng đánh (màu đường ngắm + vệt bi cái). Chọn tự do, lưu trên máy, gửi cho đối thủ qua `setProfile`. Chưa có kinh tế xu/mở khoá.
+- Emote: 10 biểu cảm, bong bóng cạnh avatar, giới hạn 1,2 giây/lần.

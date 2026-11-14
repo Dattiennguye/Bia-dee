@@ -58,6 +58,11 @@ export type TableEvent =
   | { t: number; k: 'cushion'; ball: number; speed: number }
   | { t: number; k: 'pocket'; ball: number; pocket: number };
 
+/** Hồ sơ hiển thị: chỉ số trong danh sách avatar / gậy / hiệu ứng của client (không cần tài khoản) */
+export interface Profile { a: number; c: number; f: number }
+export const PROFILE_COUNTS = { avatar: 12, cue: 13, fx: 9 } as const;
+export const EMOTE_COUNT = 10;
+
 export interface PlayerPublic {
   id: string;
   name: string;
@@ -66,6 +71,7 @@ export interface PlayerPublic {
   connected: boolean;
   isBot: boolean;
   isHost: boolean;
+  prof?: Profile;
 }
 
 export interface RoomConfig {
@@ -165,7 +171,9 @@ export interface TournamentSnapshot {
 
 // ---------- Client -> Server ----------
 export type ClientMsg =
-  | { t: 'auth'; sessionId?: string; name?: string }
+  | { t: 'auth'; sessionId?: string; name?: string; prof?: Profile }
+  | { t: 'setProfile'; prof: Profile }
+  | { t: 'emote'; e: number }
   | { t: 'ping'; c: number }
   | { t: 'setName'; name: string }
   | { t: 'room.create'; mode: GameMode; teamMode: TeamMode; maxPlayers: 2 | 3 | 4; bestOf?: 1 | 3 | 5 }
@@ -191,6 +199,7 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'auth.ok'; sessionId: string; playerId: string; name: string; serverTime: number; room: RoomSnapshot | null }
   | { t: 'pong'; c: number; serverTime: number }
+  | { t: 'emote'; seat: number; e: number }
   | { t: 'error'; code: string; message: string }
   | { t: 'room.state'; room: RoomSnapshot }
   | { t: 'room.closed'; reason: string }

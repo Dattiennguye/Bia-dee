@@ -5,7 +5,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ClientMsg, GameMode, RoomConfig, ServerMsg, TeamMode, TournamentSnapshot } from '@shared/protocol';
+import { PROFILE_COUNTS, type ClientMsg, type Profile, type GameMode, RoomConfig, ServerMsg, TeamMode, TournamentSnapshot } from '@shared/protocol';
 import { Room, DEFAULT_OPTIONS, type Conn, type RoomOptions, type Session } from './room.js';
 import {
   forfeitMatch,
@@ -28,6 +28,13 @@ function randomCode(len: number): string {
 }
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
+
+export function sanitizeProf(p: unknown): Profile | undefined {
+  if (!p || typeof p !== 'object') return undefined;
+  const o = p as Record<string, unknown>;
+  const f = (v: unknown, max: number) => (Number.isInteger(v) && (v as number) >= 0 && (v as number) < max ? (v as number) : 0);
+  return { a: f(o.a, PROFILE_COUNTS.avatar), c: f(o.c, PROFILE_COUNTS.cue), f: f(o.f, PROFILE_COUNTS.fx) };
+}
 
 export function sanitizeName(raw: unknown, fallback: string): string {
   if (typeof raw !== 'string') return fallback;
@@ -98,13 +105,15 @@ export class Hub {
         sessionId: id,
         playerId: randomBytes(6).toString('hex'),
         name: sanitizeName(msg.name, 'Khách ' + (1000 + Math.floor(Math.random() * 9000))),
+        prof: sanitizeProf(msg.prof),
         conn: null,
         roomCode: null,
         lastSeen: Date.now(),
       };
       this.sessions.set(id, s);
-    } else if (msg.name) {
-      s.name = sanitizeName(msg.name, s.name);
+    } else {
+      if (msg.name) s.name = sanitizeName(msg.name, s.name);
+      if (msg.prof) s.prof = sanitizeProf(msg.prof);
     }
     // đá kết nối cũ (nếu có)
     const old = s.conn;
@@ -137,6 +146,15 @@ export class Hub {
       room = undefined;
     }
     switch (msg.t) {
+      case 'setProfile': {
+        s.prof = sanitizeProf(msg.prof);
+        if (room) room.broadcast({ t: 'room.state', room: room.snapshot() });
+        return;
+      }
+      case 'emote': {
+        room?.emote(s.playerId, Number(msg.e));
+        return;
+      }
       case 'setName': {
         s.name = sanitizeName(msg.name, s.name);
         return;

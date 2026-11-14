@@ -1,3 +1,4 @@
+import { CUES, FXS, cueTexture, hex as hexStr, type Fx } from './cosmetics';
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -305,7 +306,13 @@ export class BilliardScene {
   private sCue: Strip;
   private sRefl: Strip;
   private placeRing: THREE.Mesh;
-  private key: THREE.DirectionalLight;
+  private key: THREE.SpotLight;
+  private lamp = { level: 1, tone: 0 };
+  private cueMats!: { shaft: THREE.MeshStandardMaterial; butt: THREE.MeshStandardMaterial; wrap: THREE.MeshStandardMaterial; ring: THREE.MeshStandardMaterial; tip: THREE.MeshStandardMaterial };
+  private cueTex = new Map<number, THREE.CanvasTexture>();
+  private cueShadow!: THREE.Mesh;
+  private fx: Fx = FXS[0];
+  private trail!: { pts: THREE.Points; pos: Float32Array; col: Float32Array; base: Float32Array; life: Float32Array; head: number; lx: number; ly: number; hue: number; mats: Record<string, THREE.Texture> };
   private raf = 0;
   private running = false;
   private aniso = 4;
@@ -322,7 +329,8 @@ export class BilliardScene {
   get tableTheme(): TableTheme { return TABLE_THEMES.find((t) => t.id === this.tableId) ?? TABLE_THEMES[0]; }
 
   quality: Quality = 'auto';
-  camMode: CamMode = 'persp';
+  camMode: CamMode = 'shoot';
+  private frozen: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
   private freeAz = Math.PI / 2;
   private freePol = 0.9;
   private freeDist = 3.2;
@@ -399,17 +407,14 @@ export class BilliardScene {
 
     this.hemiL = new THREE.HemisphereLight(0xcfd8ff, 0x2a1a3a, 0.55);
     this.scene.add(this.hemiL);
-    this.key = new THREE.DirectionalLight(0xfff1dc, 2.2);
-    this.key.position.set(0.6, 4, 0.9);
+    this.key = new THREE.SpotLight(0xfff1dc, 2.6, 0, 0.62, 0.85, 0);
+    this.key.position.set(0.5, 3.4, 0.7);
     this.key.target.position.set(0, 0, 0);
-    this.key.shadow.camera.left = -2;
-    this.key.shadow.camera.right = 2;
-    this.key.shadow.camera.top = 1.4;
-    this.key.shadow.camera.bottom = -1.4;
-    this.key.shadow.camera.near = 1;
-    this.key.shadow.camera.far = 8;
+    this.key.shadow.camera.near = 1.5;
+    this.key.shadow.camera.far = 7;
     this.key.shadow.bias = -0.0004;
     this.key.shadow.normalBias = 0.01;
+    this.key.shadow.radius = 3;
     this.scene.add(this.key, this.key.target);
     // đèn viền màu (thay cho PointLight để nhẹ hơn trên điện thoại)
     const rim = new THREE.DirectionalLight(0x9a7bff, 1.1);
@@ -870,12 +875,14 @@ export class BilliardScene {
       g.translate(-(x0 + len / 2), 0, 0);
       return new THREE.Mesh(g, mat);
     };
-    const mShaft = new THREE.MeshStandardMaterial({ color: 0xf0d9a6, roughness: 0.35 });
-    const mButt = new THREE.MeshStandardMaterial({ color: 0x2a1722, roughness: 0.4 });
+    const mShaft = new THREE.MeshStandardMaterial({ color: 0xf0d9a6, roughness: 0.3, envMapIntensity: 1.2 });
+    const mButt = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.32, metalness: 0.1, envMapIntensity: 1.3 });
     const mWrap = new THREE.MeshStandardMaterial({ color: 0xff5fa8, roughness: 0.5 });
-    const mGold = new THREE.MeshStandardMaterial({ color: 0xe0b050, metalness: 1, roughness: 0.3 });
+    const mGold = new THREE.MeshStandardMaterial({ color: 0xe0b050, metalness: 1, roughness: 0.25 });
+    const mTip = new THREE.MeshStandardMaterial({ color: 0x3aa0ff, roughness: 0.9 });
+    this.cueMats = { shaft: mShaft, butt: mButt, wrap: mWrap, ring: mGold, tip: mTip };
     const parts = [
-      seg(0.0062, 0.0062, 0.006, 0, new THREE.MeshStandardMaterial({ color: 0x3aa0ff, roughness: 0.9 })),
+      seg(0.0062, 0.0062, 0.006, 0, mTip),
       seg(0.0066, 0.0066, 0.022, 0.006, new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.4 })),
       seg(0.0066, 0.0102, 0.76, 0.028, mShaft),
       seg(0.0104, 0.0104, 0.012, 0.788, mGold),
@@ -888,6 +895,121 @@ export class BilliardScene {
     for (const p of parts) { p.castShadow = true; this.cueGroup.add(p); }
     this.cueGroup.visible = false;
     this.scene.add(this.cueGroup);
+    // bóng mờ của cơ trên mặt bàn
+    const cg = document.createElement('canvas'); cg.width = 8; cg.height = 32;
+    const cx = cg.getContext('2d')!; const gr = cx.createLinearGradient(0, 0, 0, 32);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    cx.fillStyle = gr; cx.fillRect(0, 0, 8, 32);
+    const sg = new THREE.PlaneGeometry(1.45, 0.05).rotateX(-Math.PI / 2);
+    sg.translate(-0.725, 0, 0);
+    const smat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cg), transparent: true, depthWrite: false, opacity: 0.8 });
+    smat.map!.rotation = Math.PI / 2; smat.map!.center.set(0.5, 0.5);
+    this.cueShadow = new THREE.Mesh(sg, smat);
+    this.cueShadow.renderOrder = 2; this.cueShadow.visible = false;
+    this.scene.add(this.cueShadow);
+    this.setCueSkin(0);
+    this.buildTrail();
+  }
+
+  // ---------- gậy / hiệu ứng / đèn ----------
+  setCueSkin(i: number): void {
+    const k = CUES[i] ?? CUES[0];
+    const m = this.cueMats;
+    let tex = this.cueTex.get(i);
+    if (!tex) {
+      tex = new THREE.CanvasTexture(cueTexture(k));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = this.aniso;
+      this.cueTex.set(i, tex);
+    }
+    m.butt.map = tex;
+    m.butt.color.set(0xffffff);
+    m.butt.emissive.set(k.glow ?? 0x000000);
+    m.butt.emissiveMap = k.glow ? tex : null;
+    m.butt.emissiveIntensity = k.glow ? 0.55 : 0;
+    m.butt.needsUpdate = true;
+    m.shaft.color.set(k.shaft);
+    m.wrap.color.set(k.accent);
+    m.ring.color.set(k.ring);
+    m.tip.color.set(k.tip);
+  }
+
+  setFx(i: number): void {
+    this.fx = FXS[i] ?? FXS[0];
+    this.applyAimColor(0);
+  }
+
+  private applyAimColor(now: number): void {
+    const a = this.fx.aim;
+    const col = (this.sAim.mesh.material as THREE.MeshBasicMaterial).color;
+    if (a === 'rainbow') col.setHSL((now / 2500) % 1, 0.9, 0.62); else col.set(a);
+  }
+
+  /** level 0.3..1.8 (độ sáng), tone -1 (lạnh)..1 (ấm) */
+  setLamp(level: number, tone: number): void {
+    this.lamp = { level, tone };
+    const l = Math.max(0.3, Math.min(1.8, level));
+    this.key.intensity = 2.6 * l;
+    this.hemiL.intensity = 0.55 * (0.55 + 0.45 * l);
+    this.renderer.toneMappingExposure = 0.92 * (0.8 + 0.2 * l);
+    this.scene.environmentIntensity = 0.5 * (0.6 + 0.4 * l);
+    const neutral = new THREE.Color(0xfff4e6);
+    this.key.color.copy(neutral).lerp(new THREE.Color(tone >= 0 ? 0xffa95a : 0xaecaff), Math.abs(tone) * 0.8);
+  }
+  getLamp(): { level: number; tone: number } { return { ...this.lamp }; }
+
+  private buildTrail(): void {
+    const N = 360;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+    pos.fill(-99);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mk = (draw: (g: CanvasRenderingContext2D) => void): THREE.CanvasTexture => {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      draw(c.getContext('2d')!); return new THREE.CanvasTexture(c);
+    };
+    const glow = mk((g) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, '#fff'); r.addColorStop(0.35, 'rgba(255,255,255,.6)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); });
+    const heart = mk((g) => { g.fillStyle = '#fff'; g.font = '48px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u2665', 32, 36); });
+    const star = mk((g) => { g.fillStyle = '#fff'; g.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 11 : 28, a = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } g.fill(); });
+    const mat = new THREE.PointsMaterial({ size: 0.05, map: glow, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false; pts.renderOrder = 4;
+    this.scene.add(pts);
+    this.trail = { pts, pos, col, base: new Float32Array(N * 3), life: new Float32Array(N), head: 0, lx: 0, ly: 0, hue: 0, mats: { glow, heart, star } };
+  }
+
+  private updateTrail(dt: number): void {
+    const T = this.trail, n = T.life.length;
+    const kind = this.fx.trail;
+    const mat = T.pts.material as THREE.PointsMaterial;
+    const want = kind === 'hearts' ? T.mats.heart : kind === 'stars' ? T.mats.star : T.mats.glow;
+    if (mat.map !== want) { mat.map = want; mat.needsUpdate = true; }
+    mat.size = kind === 'hearts' || kind === 'stars' ? 0.045 : 0.034;
+    const c = this.balls[0];
+    if (kind !== 'none' && this.play && !c.pocketed && c.mesh.visible && Math.hypot(c.x - T.lx, c.y - T.ly) > 0.014) {
+      T.lx = c.x; T.ly = c.y;
+      const cols = this.fx.colors;
+      const color = new THREE.Color(kind === 'rainbow' ? new THREE.Color().setHSL((T.hue += 0.035) % 1, 0.95, 0.6) : cols[Math.floor(Math.random() * cols.length)]);
+      const k = T.head; T.head = (k + 1) % n;
+      const jit = kind === 'fire' || kind === 'stars' ? 0.012 : 0.004;
+      T.pos[3 * k] = c.x - L / 2 + (Math.random() - 0.5) * jit;
+      T.pos[3 * k + 1] = R * 0.9 + Math.random() * 0.01;
+      T.pos[3 * k + 2] = c.y - W / 2 + (Math.random() - 0.5) * jit;
+      T.base[3 * k] = color.r; T.base[3 * k + 1] = color.g; T.base[3 * k + 2] = color.b;
+      T.life[k] = 1;
+    }
+    const rise = kind === 'fire' ? 0.16 : kind === 'hearts' || kind === 'stars' ? 0.08 : 0.01;
+    for (let i = 0; i < n; i++) {
+      if (T.life[i] <= 0) continue;
+      T.life[i] -= dt / (kind === 'glow' || kind === 'rainbow' ? 0.9 : 0.7);
+      const l = Math.max(0, T.life[i]);
+      T.pos[3 * i + 1] += rise * dt;
+      T.col[3 * i] = T.base[3 * i] * l; T.col[3 * i + 1] = T.base[3 * i + 1] * l; T.col[3 * i + 2] = T.base[3 * i + 2] * l;
+      if (l <= 0) T.pos[3 * i + 1] = -99;
+    }
+    (T.pts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    (T.pts.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
   }
 
   // ---------- điều khiển ----------
@@ -1057,9 +1179,11 @@ export class BilliardScene {
     this.aim.visible = false;
     this.otherAim = null;
     this.moveCueBall(msg.cueStart.x, msg.cueStart.y);
+    this.freezeCamera = true;
     if (!(this.strokeActive && this.strokeLocal)) { this.startStroke(msg.shot.power, msg.shot.angle); this.strokeLocal = false; }
   }
   private strokeLocal = false;
+  private freezeCamera = false;
 
   private startStroke(power: number, angle: number): void {
     this.strokeT = 0;
@@ -1071,6 +1195,7 @@ export class BilliardScene {
   /** Hoạt ảnh cú đánh cục bộ của chính mình (trước khi nhận kết quả) */
   localStroke(power: number, angle: number): void {
     this.startStroke(power, angle);
+    this.freezeCamera = true;
     this.strokeT = 0.28; // cần đã được kéo sẵn: chỉ còn pha đẩy tới
     this.strokeLocal = true;
   }
@@ -1114,6 +1239,7 @@ export class BilliardScene {
     this.updatePlayback(now);
     this.updateStroke(dt);
     this.updateGuides(now);
+    this.updateTrail(dt);
     this.updateCamera(dt, now);
     for (const f of this.floaters) {
       f.userData.float += dt;
@@ -1242,6 +1368,7 @@ export class BilliardScene {
     const c = this.balls[0];
     const show = (this.aim.visible || this.strokeActive || this.otherAim !== null) && !c.pocketed && c.mesh.visible;
     this.cueGroup.visible = show;
+    this.cueShadow.visible = show;
     if (!show) return;
     let angle = this.aim.angle;
     let pull = this.aim.power;
@@ -1263,6 +1390,8 @@ export class BilliardScene {
     this.cueGroup.position.set(cx - Math.cos(angle) * gap, R + 0.02, cz - Math.sin(angle) * gap);
     this.cueGroup.rotation.set(0, -angle, 0);
     this.cueGroup.rotateZ(-0.06);
+    this.cueShadow.position.set(this.cueGroup.position.x + 0.03, 0.0022, this.cueGroup.position.z + 0.035);
+    this.cueShadow.rotation.set(0, -angle, 0);
   }
 
   private updateGuides(now: number): void {
@@ -1301,6 +1430,7 @@ export class BilliardScene {
     const ox = -L / 2;
     const oz = -W / 2;
     const scroll = (now / 1000) * 0.9;
+    if (this.fx.aim === 'rainbow') this.applyAimColor(now);
     this.sAim.set(c.x + ox, c.y + oz, gx + ox, gy + oz, 0.004, scroll);
     this.ghostBall.visible = true;
     this.ghostBall.position.set(gx + ox, R, gy + oz);
@@ -1343,7 +1473,7 @@ export class BilliardScene {
     let mode = this.camMode;
     const c = this.balls[0];
     const inIntro = now < this.introUntil;
-    const shooting = this.play !== null || now < this.shotCamUntil;
+    const shooting = this.play !== null || now < this.shotCamUntil || this.strokeActive;
     const cx = c.x - L / 2;
     const cz = c.y - W / 2;
 
@@ -1380,13 +1510,25 @@ export class BilliardScene {
         goalLook.set(0, 0, 0);
       } else if (mode === 'persp') {
         this.setOrbitGoal(goalPos, goalLook, th, aspect);
-      } else if (mode === 'shoot' && shooting) {
-        // đang lăn: lùi lên góc cao để thấy toàn cảnh
-        this.setOrbitGoal(goalPos, goalLook, th, aspect);
       } else if (mode === 'shoot') {
-        const ang = this.aim.angle;
-        goalPos.set(cx - Math.cos(ang) * 0.78, 0.3, cz - Math.sin(ang) * 0.78);
-        goalLook.set(cx + Math.cos(ang) * 0.9, 0.0, cz + Math.sin(ang) * 0.9);
+        if (this.freezeCamera && !this.frozen) {
+          this.frozen = { pos: this.camPos.clone(), look: this.camLook.clone() };
+        }
+        this.freezeCamera = false;
+        if (shooting && this.frozen) {
+          // đang lăn bi: giữ nguyên góc sau cơ, không bay sang góc khác
+          goalPos.copy(this.frozen.pos);
+          goalLook.copy(this.frozen.look);
+        } else {
+          const ang = this.aim.visible || !this.otherAim ? this.aim.angle : this.otherAim.angle;
+          const yaw = ang + this.viewAz;
+          const e = Math.min(1.35, Math.max(0.06, 0.2 + this.viewEl));
+          const dist = 0.8 * this.viewZoom;
+          goalPos.set(cx - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, cz - Math.sin(yaw) * Math.cos(e) * dist);
+          const f = Math.max(0, Math.cos(this.viewAz));
+          goalLook.set(cx + Math.cos(ang) * 0.9 * f, 0.0, cz + Math.sin(ang) * 0.9 * f);
+          if (!shooting) this.frozen = null;
+        }
       } else if (mode === 'free') {
         const sp = Math.sin(this.freePol);
         goalPos.set(Math.cos(this.freeAz) * this.freeDist * sp, Math.cos(this.freePol) * this.freeDist, Math.sin(this.freeAz) * this.freeDist * sp);
