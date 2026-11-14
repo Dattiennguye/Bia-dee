@@ -1,6 +1,7 @@
 import './styles.css';
 import { Net, LS, normalizeServer } from './net';
 import { audio } from './audio';
+import { ic } from './icons';
 import { BilliardScene, ballColor, type CamMode, type Quality } from './scene';
 import { initialBalls } from '@gameserver/rack';
 import {
@@ -137,13 +138,13 @@ function main(): void {
     <div class="logo" style="font-size:clamp(30px,6vw,56px)">VIGO BILLIARDS<br/>PARTY</div>
     <div class="sub">Xin chào, <b data-act="settings" style="color:var(--gold);cursor:pointer">${esc(net.name || 'Khách')}</b>! Tạo phòng và rủ bạn bè cùng chơi.</div>
     <div class="menu">
-      <button class="btn primary" data-act="quick"><span class="ic">🤖</span>CHƠI VỚI MÁY (OFFLINE)</button>
-      <button class="btn gold" data-act="create"><span class="ic">🎱</span>TẠO PHÒNG</button>
-      <button class="btn cyan" data-act="join"><span class="ic">🔑</span>THAM GIA PHÒNG</button>
-      <button class="btn" data-act="tlist"><span class="ic">🏆</span>GIẢI ĐẤU</button>
+      <button class="btn primary" data-act="quick"><span class="ic">${ic('bot', 26)}</span>CHƠI VỚI MÁY (OFFLINE)</button>
+      <button class="btn gold" data-act="create"><span class="ic">${ic('ball', 26)}</span>TẠO PHÒNG</button>
+      <button class="btn cyan" data-act="join"><span class="ic">${ic('key', 26)}</span>THAM GIA PHÒNG</button>
+      <button class="btn" data-act="tlist"><span class="ic">${ic('trophy', 26)}</span>GIẢI ĐẤU</button>
       <div class="row center">
-        <button class="btn ghost small" data-act="help">📖 Hướng dẫn</button>
-        <button class="btn ghost small" data-act="settings">⚙️ Cài đặt</button>
+        <button class="btn ghost small" data-act="help">${ic('book', 18)} Hướng dẫn</button>
+        <button class="btn ghost small" data-act="settings">${ic('gear', 18)} Cài đặt</button>
       </div>
     </div></div>`;
 }
@@ -228,10 +229,11 @@ function lobby(): void {
 
 // ---------- GAME ----------
 const CAM_LIST: CamMode[] = ['top', 'persp', 'shoot', 'free', 'cinema'];
-const CAM_ICON: Record<CamMode, string> = { top: '⬇️', persp: '🎥', shoot: '🎯', free: '🔄', cinema: '🎬' };
+const CAM_ICON: Record<CamMode, string> = { top: ic('camTop'), persp: ic('cam3d'), shoot: ic('camCue'), free: ic('camFree'), cinema: ic('camFilm') };
 const CAM_NAME: Record<CamMode, string> = { top: 'Trên xuống', persp: '3D', shoot: 'Sau cơ', free: 'Tự do', cinema: 'Phim' };
 let gaugeDrag: null | { id: number; y0: number; moved: boolean; tick: number } = null;
 let miniHandle = 0;
+let msgFade = 0;
 let dialTotal = 0;
 
 function game(): void {
@@ -241,15 +243,14 @@ function game(): void {
     <div class="tc" id="tc"></div>
     <div class="tr">
       <button class="rbtn" data-act="camtoggle" id="cambtn" aria-label="Góc nhìn"><span id="camicon">${CAM_ICON[scene.camMode]}</span></button>
-      <button class="rbtn" data-act="mute" id="mutebtn" aria-label="Âm thanh">${audio.musicVol > 0 ? '🔊' : '🔇'}</button>
+      <button class="rbtn" data-act="mute" id="mutebtn" aria-label="Âm thanh">${audio.musicVol > 0 ? ic('vol') : ic('mute')}</button>
     </div>
     <div class="camlist" id="camlist" hidden>
       ${CAM_LIST.map((m, i) => `<button class="camitem ${scene.camMode === m ? 'on' : ''}" data-cam="${m}" title="${i + 1}"><span class="i">${CAM_ICON[m]}</span>${CAM_NAME[m]}</button>`).join('')}
     </div>
     <div class="msgbar" id="msgbar" hidden></div>
-    <div class="bl"><button class="rbtn menu" data-act="pause" aria-label="Menu">☰</button><canvas class="mini" id="mini" width="176" height="92"></canvas></div>
+    <div class="bl"><button class="rbtn menu" data-act="pause" aria-label="Menu">${ic('menu')}</button><canvas class="mini" id="mini" width="176" height="92"></canvas></div>
     <div class="hint" id="hint"></div>
-    <div class="sidebtns" id="sidebtns"><button class="btn small primary" data-act="placebtn" id="placebtn" hidden>✋ Đặt bi cái</button></div>
     <div class="dial" id="dial"><span class="dl">◀</span><div class="dialtrack" id="dialtrack"></div><span class="dl">▶</span></div>
     <div class="spin" id="spinbox"><div class="spinball" id="spinball"><div class="spindot" id="spindot" style="left:50%;top:50%"></div></div></div>
     <div class="gauge idle" id="gauge">
@@ -458,7 +459,14 @@ function updateHud(): void {
     fr.innerHTML = `Ván ${room.frameNo} · ${need * 2 - 1 === 1 ? 'BO1' : 'BO' + (need * 2 - 1)} · ${room.frameWins.join(' - ')}`;
   }
   const mb = el('#msgbar');
-  if (mb) { mb.hidden = !g.message; mb.textContent = g.message; mb.classList.toggle('foul', /^Lỗi|Hết giờ/.test(g.message)); }
+  if (mb) {
+    if (mb.textContent !== g.message) {
+      mb.hidden = !g.message; mb.textContent = g.message; mb.classList.remove('fade');
+      mb.classList.toggle('foul', /^Lỗi|Hết giờ/.test(g.message));
+      window.clearTimeout(msgFade);
+      msgFade = window.setTimeout(() => mb.classList.add('fade'), 3200);
+    }
+  }
   updateTimer();
   updateControls();
 }
@@ -495,7 +503,7 @@ function updateControls(): void {
   if (hint) {
     if (!my) hint.textContent = g && g.phase !== 'over' ? `Lượt của ${room!.players.find((p) => p.seat === g.currentSeat)?.name ?? ''}…` : '';
     else if (placing) hint.textContent = g?.breakShot ? 'Chạm/kéo để đặt bi cái sau vạch đầu bàn' : 'Chạm/kéo để đặt bi cái ở bất kỳ đâu';
-    else hint.textContent = scene.camMode === 'free' ? 'Chế độ tự do: chuyển sang góc khác để ngắm' : '';
+    else hint.textContent = scene.camMode === 'free' ? 'Chế độ tự do: chuyển sang góc khác để ngắm' : bih ? 'Chạm vào bi cái để đặt lại vị trí' : '';
   }
   scene.setPlaceRing(my && placing, scene.ballPos(0).x, scene.ballPos(0).y, true);
 }
@@ -507,9 +515,9 @@ function refreshTurn(): void {
   if (my && lastTurnSeat !== g.currentSeat) {
     audio.turn();
     vibrate(60);
-    placing = !!g.ballInHand && g.ballInHand.seat === mySeat();
     // hướng ngắm ban đầu: về phía bi hợp lệ gần nhất / tam giác bi
     const c = scene.ballPos(0);
+    placing = !!g.ballInHand && g.ballInHand.seat === mySeat() && !cuePlacementValid(c.x, c.y);
     let tx = L * 0.75, ty = W / 2, bd = Infinity;
     for (const b of g.balls) {
       if (b.id === 0 || b.pocketed) continue;
@@ -613,6 +621,8 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   const touch = e.pointerType !== 'mouse';
   const c = scene.ballPos(0);
+  // bi cái đang "trong tay": chạm vào chính bi cái để đặt lại
+  if (room?.game?.ballInHand && Math.hypot(p.x - c.x, p.y - c.y) < 0.07) { placing = true; updateControls(); return; }
   aimDrag = { touch, prevAng: Math.atan2(p.y - c.y, p.x - c.x) };
   if (!touch) aimTo(p, false);
 });
@@ -688,7 +698,7 @@ window.addEventListener('keydown', (e) => {
 function setCam(m: CamMode): void {
   scene.setCamMode(m);
   document.querySelectorAll<HTMLElement>('[data-cam]').forEach((b) => b.classList.toggle('on', b.dataset.cam === m));
-  const ci = el('#camicon'); if (ci) ci.textContent = CAM_ICON[m];
+  const ci = el('#camicon'); if (ci) ci.innerHTML = CAM_ICON[m];
   const cl = el('#camlist'); if (cl) cl.hidden = true;
   LS.set('vigo.cam', m);
 }
@@ -826,7 +836,7 @@ function tbracket(): void {
 // ============ cài đặt / hướng dẫn ============
 function settings(): void {
   ui.innerHTML = `<div class="screen bg">${backBtn('main')}
-    <div class="panel col" style="align-items:stretch"><h2>⚙️ Cài đặt</h2>
+    <div class="panel col" style="align-items:stretch"><h2>${ic('gear', 22)} Cài đặt</h2>
       <div><label class="lbl">Biệt danh (không cần tài khoản)</label><input id="sname" maxlength="16" value="${esc(net.name)}" placeholder="Biệt danh của bạn" /></div>
       <div><label class="lbl">Nhạc nền</label><input class="range" type="range" id="vmusic" min="0" max="1" step="0.05" value="${audio.musicVol}" /></div>
       <div><label class="lbl">Âm thanh hiệu ứng</label><input class="range" type="range" id="vsfx" min="0" max="1" step="0.05" value="${audio.sfxVol}" /></div>
@@ -841,10 +851,10 @@ function settings(): void {
 
 function help(): void {
   ui.innerHTML = `<div class="screen bg" style="justify-content:flex-start">${backBtn('main')}
-    <div class="panel" style="margin-top:44px"><h2>📖 Hướng dẫn chơi</h2><ul class="slides">
+    <div class="panel" style="margin-top:44px"><h2>${ic('book', 22)} Hướng dẫn chơi</h2><ul class="slides">
       <li><b>Vào phòng:</b> một người bấm <b>Tạo phòng</b>, những người còn lại nhập <b>mã phòng</b> (hoặc mở đường dẫn mời). Không cần tài khoản.</li>
       <li><b>Ngắm:</b> kéo ngón tay (hoặc chuột) trên bàn để xoay hướng cơ. Dùng thanh <b>Tinh chỉnh</b> để chỉnh nhỏ. Vạch trắng là đường đi, vạch vàng là hướng bi bị đánh.</li>
-      <li><b>Lực:</b> kéo thanh màu bên trái. Lực càng mạnh bi chạy càng xa.</li>
+      <li><b>Lực:</b> chạm cần ở mép phải, <b>kéo xuống</b> để lấy đà rồi <b>thả tay</b> để đánh. Kéo về lại đỉnh rồi thả = huỷ.</li>
       <li><b>Xoáy:</b> chạm vào quả bi trắng bên phải: <b>trên</b> = bi chạy theo, <b>dưới</b> = bi giật lùi, <b>trái/phải</b> = xoáy ngang. Nhấp đúp để về giữa.</li>
       <li><b>Camera:</b> Trên (nhìn từ trên xuống), 3D, Sau cơ, Tự do (kéo để xoay, cuộn/chụm để zoom) và Phim (tự động theo cú đánh).</li>
       <li><b>Phím tắt (PC):</b> ←/→ ngắm tinh, ↑/↓ lực, Space đánh, 1–5 đổi camera.</li>
@@ -906,7 +916,7 @@ function act(a: string, node?: HTMLElement): void {
     case 'shoot': shoot(); break;
     case 'pause': pauseMenu(); break;
     case 'camtoggle': { const cl = el('#camlist'); if (cl) cl.hidden = !cl.hidden; break; }
-    case 'mute': { const off = audio.musicVol > 0; audio.setMusic(off ? 0 : 0.5); audio.setSfx(off ? 0 : 0.8); const b = el('#mutebtn'); if (b) b.textContent = off ? '🔇' : '🔊'; break; }
+    case 'mute': { const off = audio.musicVol > 0; audio.setMusic(off ? 0 : 0.5); audio.setSfx(off ? 0 : 0.8); const b = el('#mutebtn'); if (b) b.innerHTML = off ? ic('mute') : ic('vol'); break; }
     case 'placebtn': placing = !placing; updateControls(); break;
     case 'resume': ui.querySelector('.pausebox')?.remove(); break;
     case 'savesettings': {
@@ -955,8 +965,8 @@ function pauseMenu(): void {
   d.innerHTML = `<div class="panel col" style="align-items:stretch"><h2>Tạm dừng</h2>
     <div class="sub">Ván đấu trực tuyến vẫn tiếp tục khi bạn mở menu.</div>
     <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
-    <button class="btn gold block" data-act="resume">▶ TIẾP TỤC</button>
-    <button class="btn ghost block" data-act="leave">🚪 RỜI TRẬN</button></div>`;
+    <button class="btn gold block" data-act="resume">${ic('play', 18)} TIẾP TỤC</button>
+    <button class="btn ghost block" data-act="leave">${ic('exit', 18)} RỜI TRẬN</button></div>`;
   ui.appendChild(d);
 }
 
@@ -1012,6 +1022,7 @@ function onShotResult(m: ShotResultMsg): void {
   if (screen !== 'game') { screen = 'game'; game(); }
   const heading = room.players.find((p) => p.seat === m.seat)?.name ?? '';
   scene.setCamMode(scene.camMode);
+  scene.breakShot = !!room.game?.breakShot;
   scene.playShot(m, () => {
     if (!room) return;
     room.game = { ...m.snapshot, phase: 'playing' };

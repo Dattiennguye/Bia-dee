@@ -13,7 +13,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.click('[data-act="quick"]');
   await p.waitForFunction(() => window.__vigo.screen === 'game', null, { timeout: 30000 });
   await sleep(4500);
-  await p.click('#placebtn'); await sleep(200);
+  await sleep(100); await sleep(200);
   // kéo chuột để ngắm
   await p.mouse.move(500, 300); await p.mouse.down(); await p.mouse.move(640, 280); await p.mouse.up();
   for (const cam of ['top', 'shoot', 'free']) {

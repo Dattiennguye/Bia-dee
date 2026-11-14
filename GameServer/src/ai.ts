@@ -5,6 +5,7 @@
 import { POCKETS, TABLE, type BallState, type ShotInput } from '@shared/protocol';
 import { HEAD_SPOT } from './rack.js';
 import { isValidCuePlacement, legalTargets, type RuleState } from './rules.js';
+import { speedToPower } from './physics.js';
 
 const R = TABLE.R;
 
@@ -102,7 +103,7 @@ export function chooseMove(rs: RuleState, balls: BallState[], rnd: () => number,
   const cand = bestShot(cue, balls, targets);
   const noise = (1 - skill) * 0.05;
   if (cand) {
-    const power = Math.min(0.85, Math.max(0.2, 0.18 + cand.dist * 0.17));
+    const power = speedToPower(Math.min(6.5, Math.max(1.6, 1.4 + cand.dist * 1.7)));
     return {
       cue: placed,
       shot: { angle: cand.angle + (rnd() - 0.5) * noise, power, spinX: 0, spinY: 0.05 },
@@ -113,5 +114,5 @@ export function chooseMove(rs: RuleState, balls: BallState[], rnd: () => number,
   nearest = nearest.sort((a, b) => Math.hypot(a.x - cue.x, a.y - cue.y) - Math.hypot(b.x - cue.x, b.y - cue.y));
   const tb = nearest[0];
   const ang = tb ? Math.atan2(tb.y - cue.y, tb.x - cue.x) : rnd() * Math.PI * 2;
-  return { cue: placed, shot: { angle: ang + (rnd() - 0.5) * 0.04, power: 0.3 + rnd() * 0.3, spinX: 0, spinY: 0 } };
+  return { cue: placed, shot: { angle: ang + (rnd() - 0.5) * 0.04, power: speedToPower(2 + rnd() * 1.5), spinX: 0, spinY: 0 } };
 }

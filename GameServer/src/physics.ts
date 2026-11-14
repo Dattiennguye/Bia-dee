@@ -17,7 +17,7 @@ export const PHYS = {
   /** Hệ số ma sát trượt bi-nỉ */
   muSlide: 0.2,
   /** Hệ số cản lăn (giảm tốc khi lăn = muRoll * g) */
-  muRoll: 0.035,
+  muRoll: 0.012,
   /** Giảm tốc quay quanh trục đứng (rad/s^2) */
   spinZDecel: 40,
   eBall: 0.95,
@@ -28,6 +28,11 @@ export const PHYS = {
   rest: 0.003,
   maxTime: 45,
 };
+
+/** Đường cong lực: v = vMax * p^1.7 (đánh nhẹ có độ phân giải tốt, đánh mạnh/phá bi vẫn tới vMax) */
+export const POWER_EXP = 1.7;
+export const powerToSpeed = (p: number): number => Math.max(0.05, PHYS.vMax * Math.pow(Math.min(1, Math.max(0, p)), POWER_EXP));
+export const speedToPower = (v: number): number => Math.min(1, Math.max(0, Math.pow(v / PHYS.vMax, 1 / POWER_EXP)));
 
 const R = TABLE.R;
 const L = TABLE.L;
@@ -84,7 +89,7 @@ export function makeBalls(states: BallState[]): Ball[] {
 /** Áp lực đánh lên bi cái: tính vận tốc và xoáy ban đầu từ điểm tiếp xúc của cơ */
 export function applyCueStrike(cue: Ball, shot: ShotInput): number {
   const power = clamp(shot.power, 0, 1);
-  const v0 = Math.max(0.05, PHYS.vMax * power);
+  const v0 = powerToSpeed(power);
   let a = clamp(shot.spinX, -1, 1);
   let b = clamp(shot.spinY, -1, 1);
   const mag = Math.hypot(a, b);
@@ -330,6 +335,15 @@ function snapshotFrame(balls: Ball[]): number[] {
 
 /** Trả về chỉ số lỗ nếu bi rơi xuống lỗ, ngược lại -1 */
 function pocketCheck(b: Ball): number {
+  // đã ra ngoài mặt bàn qua miệng lỗ (không còn băng chặn) => rơi vào lỗ gần nhất
+  if (b.x < 0 || b.x > L || b.y < 0 || b.y > W) {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < POCKETS.length; i++) {
+      const d = Math.hypot(POCKETS[i].x - b.x, POCKETS[i].y - b.y);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
   for (let i = 0; i < POCKETS.length; i++) {
     const p = POCKETS[i];
     const dx = p.x - b.x;
@@ -344,22 +358,55 @@ function pocketCheck(b: Ball): number {
   return -1;
 }
 
-/** Xử lý va chạm băng. Trả về tốc độ pháp tuyến nếu có va chạm, 0 nếu không. */
+/** Khoảng cách từ góc/giữa tới đầu mũi băng (mép miệng lỗ) */
+const NOSE_CORNER = 0.085;
+const NOSE_SIDE = 0.068;
+const JAW_R = 0.005;
+
+/** Các "răng lỗ": điểm cuối mũi băng bao quanh miệng lỗ */
+const JAWS: Array<{ x: number; y: number }> = [];
+for (const p of POCKETS) {
+  if (p.x === L / 2) {
+    JAWS.push({ x: p.x - NOSE_SIDE, y: p.y }, { x: p.x + NOSE_SIDE, y: p.y });
+  } else {
+    const sx = p.x === 0 ? 1 : -1;
+    const sy = p.y === 0 ? 1 : -1;
+    JAWS.push({ x: p.x + sx * NOSE_CORNER, y: p.y }, { x: p.x, y: p.y + sy * NOSE_CORNER });
+  }
+}
+
+/** băng dọc theo trục x (y=0 hoặc y=W) có hiệu lực ngoài miệng lỗ */
+const railActiveX = (x: number): boolean => (x >= NOSE_CORNER && x <= L / 2 - NOSE_SIDE) || (x >= L / 2 + NOSE_SIDE && x <= L - NOSE_CORNER);
+const railActiveY = (y: number): boolean => y >= NOSE_CORNER && y <= W - NOSE_CORNER;
+
+/** Xử lý va chạm băng và răng lỗ. Trả về tốc độ pháp tuyến nếu có va chạm, 0 nếu không. */
 function cushion(b: Ball): number {
   let hit = 0;
-  if (b.x < R) {
-    hit = Math.max(hit, bounce(b, 1, 0));
-    b.x = R;
-  } else if (b.x > L - R) {
-    hit = Math.max(hit, bounce(b, -1, 0));
-    b.x = L - R;
+  if (railActiveY(b.y)) {
+    if (b.x < R) { hit = Math.max(hit, bounce(b, 1, 0)); b.x = R; }
+    else if (b.x > L - R) { hit = Math.max(hit, bounce(b, -1, 0)); b.x = L - R; }
   }
-  if (b.y < R) {
-    hit = Math.max(hit, bounce(b, 0, 1));
-    b.y = R;
-  } else if (b.y > W - R) {
-    hit = Math.max(hit, bounce(b, 0, -1));
-    b.y = W - R;
+  if (railActiveX(b.x)) {
+    if (b.y < R) { hit = Math.max(hit, bounce(b, 0, 1)); b.y = R; }
+    else if (b.y > W - R) { hit = Math.max(hit, bounce(b, 0, -1)); b.y = W - R; }
+  }
+  for (const j of JAWS) {
+    const dx = b.x - j.x;
+    const dy = b.y - j.y;
+    const rr = R + JAW_R;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= rr * rr) continue;
+    const d = Math.sqrt(d2) || 1e-9;
+    const nx = dx / d;
+    const ny = dy / d;
+    b.x = j.x + nx * rr;
+    b.y = j.y + ny * rr;
+    const vn = b.vx * nx + b.vy * ny;
+    if (vn >= 0) continue;
+    const e = 0.6;
+    b.vx -= (1 + e) * vn * nx;
+    b.vy -= (1 + e) * vn * ny;
+    hit = Math.max(hit, -vn);
   }
   return hit;
 }

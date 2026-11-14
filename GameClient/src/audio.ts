@@ -1,5 +1,6 @@
 /**
- * Âm thanh tạo ra hoàn toàn bằng WebAudio (không dùng tài nguyên bên ngoài => không vướng bản quyền).
+ * Âm thanh: tiếng đánh/phá bi/rơi lỗ dùng mẫu thật (public/sfx, cắt từ file "pool_break" của người dùng),
+ * phần còn lại tạo bằng WebAudio.
  */
 import { LS } from './net';
 
@@ -14,6 +15,36 @@ class AudioEngine {
   private musicTimer: number | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private step = 0;
+  private samples: Record<string, AudioBuffer> = {};
+
+  private async loadSamples(): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    for (const n of ['break', 'hit', 'drop']) {
+      try {
+        const r = await fetch(`./sfx/${n}.mp3`);
+        this.samples[n] = await ctx.decodeAudioData(await r.arrayBuffer());
+      } catch { /* dùng âm tổng hợp */ }
+    }
+  }
+
+  private playSample(name: string, vol: number, rate = 1): boolean {
+    const b = this.samples[name];
+    if (!this.ctx || !b) return false;
+    const src = this.ctx.createBufferSource();
+    src.buffer = b;
+    src.playbackRate.value = rate;
+    const g = this.ctx.createGain();
+    g.gain.value = vol;
+    src.connect(g);
+    g.connect(this.sfxGain!);
+    src.start();
+    return true;
+  }
+
+  breakShot(): void {
+    if (!this.playSample('break', 1)) this.cue(1);
+  }
 
   /** Phải gọi sau thao tác của người dùng (trình duyệt yêu cầu) */
   unlock(): void {
@@ -37,6 +68,7 @@ class AudioEngine {
     this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    void this.loadSamples();
     if (this.musicVol > 0) this.startMusic();
   }
 
@@ -107,6 +139,7 @@ class AudioEngine {
 
   pocket(): void {
     if (!this.ctx) return;
+    if (this.playSample('drop', 0.9, 0.95 + Math.random() * 0.1)) return;
     this.tone(110, 0.25, 'sine', 0.7, this.sfxGain!, 0, 50);
     this.noise(0.25, 0.3, 900, 2, 0.03);
     this.tone(1800, 0.05, 'triangle', 0.2, this.sfxGain!, 0.1);
@@ -116,6 +149,7 @@ class AudioEngine {
   cue(power: number): void {
     if (!this.ctx) return;
     const v = 0.3 + power * 0.7;
+    if (this.playSample('hit', 0.35 + 0.65 * power, 0.92 + Math.random() * 0.16)) return;
     this.tone(900, 0.06, 'square', 0.25 * v, this.sfxGain!, 0, 300);
     this.noise(0.05, 0.5 * v, 1800, 1.5);
     this.tone(200, 0.1, 'sine', 0.5 * v, this.sfxGain!);

@@ -318,6 +318,8 @@ export class BilliardScene {
   // phát lại cú đánh
   private play: null | { msg: ShotResultMsg; t0: number; evIdx: number; done: () => void; sunk: Set<number> } = null;
   onEventSound = true;
+  /** cú phá bi: phát mẫu âm thanh phá bi */
+  breakShot = false;
 
   // thống kê hiệu năng
   fps = 0;
@@ -352,7 +354,7 @@ export class BilliardScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.92;
     this.aniso = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
-    this.camera = new THREE.PerspectiveCamera(45, 1, 0.05, 40);
+    this.camera = new THREE.PerspectiveCamera(42, 1, 0.05, 40);
 
     this.scene.background = new THREE.Color(0x120c22);
     this.scene.fog = new THREE.Fog(0x120c22, 9, 20);
@@ -484,7 +486,7 @@ export class BilliardScene {
     const cush: Multi = [];
     const hx = L / 2;
     const hz = W / 2;
-    const cN = 0.085, cB = 0.04, sN = 0.09, sB = 0.062;
+    const cN = 0.085, cB = 0.04, sN = 0.068, sB = 0.045;
     const trap = (a: Pt, b: Pt, c: Pt, d: Pt): Poly => [[a, b, c, d]];
     for (const sz of [-1, 1]) {
       const zn = sz * hz, zb = sz * (hz + CUSHION_D);
@@ -947,7 +949,7 @@ export class BilliardScene {
       if (!b.sink && !b.pocketed) this.sinkBall(b, now);
     }
     if (!this.onEventSound) return;
-    if (e.k === 'cue') audio.cue(Math.min(1, e.speed / 8.5));
+    if (e.k === 'cue') { if (this.breakShot) audio.breakShot(); else audio.cue(Math.min(1, e.speed / 8.5)); }
     else if (e.k === 'ball') audio.ballHit(e.speed);
     else if (e.k === 'cushion') { if (e.speed > 0.05) audio.cushion(e.speed); }
     else if (e.k === 'pocket') audio.pocket();
@@ -1088,10 +1090,16 @@ export class BilliardScene {
         const d = Math.max(2.2, need * 1.02);
         goalPos.set(0, d * 0.72, d * 0.62 * this.viewSeatSide);
         goalLook.set(0, -0.05, -0.05 * this.viewSeatSide);
+      } else if (mode === 'shoot' && shooting) {
+        // đang lăn: lùi lên góc cao để thấy toàn cảnh
+        const need = Math.max((W + 1.0) / 2 / th, (L + 0.5) / 2 / (th * aspect));
+        const d = Math.max(2.2, need * 1.02);
+        goalPos.set(0, d * 0.72, d * 0.62 * this.viewSeatSide);
+        goalLook.set(0, -0.05, -0.05 * this.viewSeatSide);
       } else if (mode === 'shoot') {
         const ang = this.aim.angle;
-        goalPos.set(cx - Math.cos(ang) * 0.85, 0.42, cz - Math.sin(ang) * 0.85);
-        goalLook.set(cx + Math.cos(ang) * 0.6, 0.02, cz + Math.sin(ang) * 0.6);
+        goalPos.set(cx - Math.cos(ang) * 0.78, 0.3, cz - Math.sin(ang) * 0.78);
+        goalLook.set(cx + Math.cos(ang) * 0.9, 0.0, cz + Math.sin(ang) * 0.9);
       } else if (mode === 'free') {
         const sp = Math.sin(this.freePol);
         goalPos.set(Math.cos(this.freeAz) * this.freeDist * sp, Math.cos(this.freePol) * this.freeDist, Math.sin(this.freeAz) * this.freeDist * sp);

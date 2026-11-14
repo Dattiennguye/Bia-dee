@@ -12,7 +12,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.click('[data-act="quick"]');
   await p.waitForFunction(() => window.__vigo.screen === 'game', null, { timeout: 60000 });
   await sleep(4500);
-  await p.click('#placebtn'); await sleep(300);
+  await sleep(100); await sleep(300);
   const box = await p.locator('#gtrack').boundingBox();
   const x = box.x + box.width / 2, y0 = box.y + 20;
   // 1) kéo 50% rồi kéo về lại -> huỷ

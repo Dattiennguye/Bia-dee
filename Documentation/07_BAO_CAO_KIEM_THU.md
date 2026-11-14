@@ -57,3 +57,8 @@ Script: `Tests/ui/` (hướng dẫn chạy trong `Tests/ui/README.md`).
 ## Bổ sung v1.1
 - 77 test tự động (vitest) đạt; `tsc` sạch; Tests/ui/pull-shot.cjs (kéo 50% rồi về = huỷ; kéo 56% rồi thả = đánh) đạt; two-players đạt, không lỗi JS.
 - **Chưa thể kiểm chứng trong sandbox**: FPS thật trên điện thoại (sandbox chỉ có dựng hình phần mềm), hiển thị tai thỏ thật, bước Gradle của APK. Cần thử trên máy thật.
+
+## Bổ sung v1.2
+- Vật lý: ma sát lăn 0.035→0.012 (bi 1 m/s lăn ~4 m, sát thực tế), đường cong lực v = 8.5·p^1.7, thêm "răng lỗ" (mũi băng bao miệng lỗ làm bi nảy) và miệng lỗ mở thật; bot dùng đường cong lực mới. 80 test đạt.
+- Âm thanh: dùng mẫu thật từ file người dùng cung cấp (phá bi, đánh bi, rơi lỗ) trong GameClient/public/sfx.
+- UI: menu thu nhỏ theo chiều cao màn hình (zoom), thông báo nhỏ/tự mờ, bỏ nút "Đặt bi cái" (chạm vào bi cái để đặt lại), bộ icon SVG, góc nhìn "Sau cơ" thấp hơn và tự lùi lên cao khi bi lăn.

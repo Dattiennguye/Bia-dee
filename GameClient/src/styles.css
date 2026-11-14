@@ -12,7 +12,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 #app { position: fixed; inset: 0; }
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
 #ui { position: absolute; inset: 0; pointer-events: none; }
-.screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto;
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; pointer-events: auto;
   padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(16px + var(--sab)) calc(16px + var(--sal)); overflow-y: auto; touch-action: pan-y;
   animation: fadein .25s ease; }
 .screen.bg { background: radial-gradient(1200px 700px at 20% -10%, #3a1b7a 0%, transparent 60%), radial-gradient(900px 600px at 100% 110%, #7a1b5a 0%, transparent 55%), linear-gradient(160deg, #1d1138, #0d0820); }
@@ -127,12 +127,13 @@ label.lbl { font-size: 13px; color: var(--muted); font-weight: 700; text-transfo
 .camlist[hidden] { display: none; }
 .camitem { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px; font-weight: 800; font-size: 14px; color: var(--text); background: transparent; text-align: left; }
 .camitem.on { background: rgba(87,214,255,.25); box-shadow: inset 0 0 0 2px var(--cyan); }
-.msgbar { position: absolute; top: calc(56px + var(--sat)); left: 50%; transform: translateX(-50%); padding: 6px 16px; border-radius: 14px; background: rgba(15,8,34,.84); font-weight: 800; font-size: 14px; max-width: min(60vw, 560px); text-align: center; }
+.msgbar { position: absolute; top: calc(58px + var(--sat)); left: 50%; transform: translateX(-50%); padding: 3px 12px; border-radius: 10px; background: rgba(15,8,34,.6); font-weight: 700; font-size: 12px; max-width: min(56vw, 480px); text-align: center; transition: opacity .6s; }
+.msgbar.fade { opacity: 0; }
 .msgbar.foul { background: rgba(160,20,40,.9); }
 .bl { position: absolute; left: calc(10px + var(--sal)); bottom: calc(10px + var(--sab)); display: flex; gap: 8px; align-items: flex-end; }
 .mini { width: 132px; height: 69px; border-radius: 12px; border: 2px solid rgba(255,255,255,.16); }
 .sidebtns { position: absolute; left: 50%; bottom: calc(62px + var(--sab)); transform: translateX(-50%); pointer-events: auto; }
-.hint { position: absolute; left: 50%; bottom: calc(102px + var(--sab)); transform: translateX(-50%); font-size: 12px; font-weight: 700; color: var(--muted); text-shadow: 0 1px 4px #000; white-space: nowrap; }
+.hint { position: absolute; left: 50%; bottom: calc(54px + var(--sab)); transform: translateX(-50%); font-size: 12px; font-weight: 700; color: var(--muted); text-shadow: 0 1px 4px #000; white-space: nowrap; }
 .dial { position: absolute; left: 50%; bottom: calc(10px + var(--sab)); transform: translateX(-50%); width: min(36vw, 300px); height: 42px; display: flex; align-items: center; gap: 6px; touch-action: none; }
 .dial .dl { font-size: 12px; color: var(--muted); }
 .dialtrack { flex: 1; height: 34px; border-radius: 17px; background: rgba(15,8,34,.8); position: relative; overflow: hidden; box-shadow: inset 0 0 0 2px var(--line); }
@@ -213,3 +214,16 @@ label.lbl { font-size: 13px; color: var(--muted); font-weight: 700; text-transfo
 .loading { width: 46px; height: 46px; border-radius: 50%; border: 5px solid rgba(255,255,255,.2); border-top-color: var(--pink); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 }
+
+/* Điện thoại ngang: thu nhỏ giao diện menu cho vừa màn hình */
+@media (max-height: 520px) {
+  .screen > :not(.back):not(.pill) { zoom: .84; }
+  .screen { padding-top: calc(8px + var(--sat)); padding-bottom: calc(8px + var(--sab)); }
+  .logo { font-size: clamp(26px, 5.4vw, 44px); }
+}
+@media (max-height: 400px) { .screen > :not(.back):not(.pill) { zoom: .66; } }
+.back, .pill { zoom: 1; }
+.toast { font-size: clamp(14px, 2.2vw, 18px); padding: 6px 14px; border-radius: 12px; border-width: 1.5px; }
+#toast { top: auto; bottom: calc(110px + var(--sab)); }
+.svgi{display:block;flex:none}
+.btn .ic{display:inline-flex}.rbtn .svgi{width:22px;height:22px}.camitem .i{display:inline-flex}.camitem .svgi{width:20px;height:20px}

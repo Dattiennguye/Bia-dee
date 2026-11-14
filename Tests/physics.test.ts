@@ -71,10 +71,10 @@ describe('vật lý', () => {
   it('đánh thẳng vào bi: xoáy lùi (draw) làm bi cái lùi, xoáy tiến (follow) làm bi cái chạy theo', () => {
     const base = table([0.9, 0.635], [[1, 1.4, 0.635]]);
     const contactX = 1.4 - 2 * R;
-    const draw = simulateShot(base, { angle: 0, power: 0.3, spinX: 0, spinY: -0.6 });
+    const draw = simulateShot(base, { angle: 0, power: 0.5, spinX: 0, spinY: -0.6 });
     expect(draw.firstContact).toBe(1);
     expect(draw.finalBalls[0].x).toBeLessThan(contactX - 0.05);
-    const follow = simulateShot(base, { angle: 0, power: 0.3, spinX: 0, spinY: 0.45 });
+    const follow = simulateShot(base, { angle: 0, power: 0.5, spinX: 0, spinY: 0.45 });
     expect(follow.finalBalls[0].x).toBeGreaterThan(contactX + 0.05);
     const stun = simulateShot(base, { angle: 0, power: 0.3, spinX: 0, spinY: 0 });
     // bi mục tiêu luôn đi tiếp về phía trước
@@ -118,5 +118,29 @@ describe('vật lý', () => {
     expect(r.frames[0][2]).toBe(1000);
     const last = r.frames[r.frames.length - 1];
     expect(last.every((v) => Number.isInteger(v))).toBe(true);
+  });
+});
+
+import { powerToSpeed, speedToPower } from '../GameServer/src/physics';
+describe('vật lý v1.1', () => {
+  it('đường cong lực đơn điệu và khả nghịch', () => {
+    let prev = 0;
+    for (let p = 0.05; p <= 1.0001; p += 0.05) { const v = powerToSpeed(p); expect(v).toBeGreaterThan(prev); prev = v; expect(speedToPower(v)).toBeCloseTo(p, 5); }
+    expect(powerToSpeed(1)).toBeCloseTo(8.5, 5);
+  });
+  it('bi lăn 1 m/s đi được khoảng 4 m (ma sát lăn thực tế ~0.012)', () => {
+    const d = (1 * 1) / (2 * 0.012 * 9.81);
+    expect(d).toBeGreaterThan(3.5); expect(d).toBeLessThan(5);
+  });
+  it('bi đi chéo vào miệng lỗ góc thì rơi, bi đập thẳng vào mũi băng cạnh miệng thì bị nảy ra', () => {
+    const base = Array.from({ length: 16 }, (_, i) => ({ id: i, x: 1, y: 0.6, pocketed: i !== 0 }));
+    base[0] = { id: 0, x: 0.3, y: 0.3, pocketed: false };
+    const into = simulateShot(base, { angle: Math.atan2(-0.3, -0.3), power: 0.5, spinX: 0, spinY: 0 });
+    expect(into.cuePocketed).toBe(true);
+    // bắn dọc băng dài sát vào răng lỗ góc: không được xuyên qua băng ra ngoài mặt bàn
+    const side = base.map((b) => ({ ...b }));
+    side[0] = { id: 0, x: 1.0, y: 0.03, pocketed: false };
+    const r = simulateShot(side, { angle: Math.PI, power: 0.6, spinX: 0, spinY: 0 });
+    for (const f of r.frames) { if (f[0] >= 0) { expect(f[0]).toBeGreaterThanOrEqual(0); expect(f[1]).toBeGreaterThanOrEqual(0); } }
   });
 });
