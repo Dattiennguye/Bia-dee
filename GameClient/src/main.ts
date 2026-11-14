@@ -39,7 +39,7 @@ try {
   throw e;
 }
 
-type Screen = 'splash' | 'main' | 'create' | 'join' | 'lobby' | 'game' | 'result' | 'tcreate' | 'tlist' | 'tbracket' | 'settings' | 'help';
+type Screen = 'splash' | 'main' | 'create' | 'join' | 'lobby' | 'game' | 'result' | 'tcreate' | 'tlist' | 'tbracket' | 'settings' | 'help' | 'themes';
 let screen: Screen = 'splash';
 let room: RoomSnapshot | null = null;
 let tour: TournamentSnapshot | null = null;
@@ -98,7 +98,7 @@ function go(s: Screen): void {
   scene.menuMode = s !== 'game' && s !== 'result';
   clearInterval(timerHandle);
   clearInterval(miniHandle);
-  const menuBg = ['splash', 'main', 'create', 'join', 'lobby', 'settings', 'help', 'tcreate', 'tlist', 'tbracket'].includes(s);
+  const menuBg = ['splash', 'main', 'create', 'join', 'lobby', 'settings', 'help', 'tcreate', 'tlist', 'tbracket', 'themes'].includes(s);
   if (menuBg) {
     if (!scene.playing) {
       scene.aim.visible = false;
@@ -109,7 +109,7 @@ function go(s: Screen): void {
   } else {
     scene.stopCelebration();
   }
-  const fn: Record<Screen, () => void> = { splash, main, create, join, lobby, game, result: () => {}, tcreate, tlist, tbracket, settings, help };
+  const fn: Record<Screen, () => void> = { splash, main, create, join, lobby, game, result: () => {}, tcreate, tlist, tbracket, settings, help, themes };
   fn[s]();
   updateBanner();
 }
@@ -150,10 +150,25 @@ function main(): void {
       <button class="btn cyan" data-act="join"><span class="ic">${ic('key', 26)}</span>THAM GIA PHÒNG</button>
       <button class="btn" data-act="tlist"><span class="ic">${ic('trophy', 26)}</span>GIẢI ĐẤU</button>
       <div class="row center">
+        <button class="btn ghost small" data-act="themes">${ic('palette', 18)} Giao diện</button>
         <button class="btn ghost small" data-act="help">${ic('book', 18)} Hướng dẫn</button>
         <button class="btn ghost small" data-act="settings">${ic('gear', 18)} Cài đặt</button>
       </div>
     </div></div>`;
+}
+
+/** Màn hình chọn bàn + không gian: bảng dưới, cảnh 3D xem trước phía trên */
+function themes(): void {
+  ui.innerHTML = `<div class="screen sheet">
+    ${backBtn('main')}
+    <div class="sheetbox">
+      <h2>${ic('palette', 22)} Giao diện bàn & không gian</h2>
+      ${themePicker()}
+      <button class="btn gold" data-act="main">Xong</button>
+    </div></div>`;
+  scene.stopCelebration();
+  scene.setCamMode('persp');
+  scene.setBalls(initialBalls('eightball', 7).map((b) => ({ id: b.id, x: b.x, y: b.y, pocketed: b.pocketed })));
 }
 
 function create(): void {
@@ -250,7 +265,8 @@ function game(): void {
     <div class="tc" id="tc"></div>
     <div class="tr">
       <button class="rbtn" data-act="camtoggle" id="cambtn" aria-label="Góc nhìn"><span id="camicon">${CAM_ICON[scene.camMode]}</span></button>
-      <button class="rbtn" data-act="mute" id="mutebtn" aria-label="Âm thanh">${audio.musicVol > 0 ? ic('vol') : ic('mute')}</button>
+      <button class="rbtn" data-act="themeovl" aria-label="Giao diện">${ic('palette')}</button>
+      <button class="rbtn" data-act="mute" id="mutebtn" aria-label="Âm thanh">${audio.sfxVol > 0 ? ic('vol') : ic('mute')}</button>
     </div>
     <div class="camlist" id="camlist" hidden>
       ${CAM_LIST.map((m, i) => `<button class="camitem ${scene.camMode === m ? 'on' : ''}" data-cam="${m}" title="${i + 1}"><span class="i">${CAM_ICON[m]}</span>${CAM_NAME[m]}</button>`).join('')}
@@ -616,7 +632,7 @@ canvas.addEventListener('pointerdown', (e) => {
     aimDrag = null;
     return;
   }
-  if (scene.camMode === 'free') return;
+  if (scene.camMode === 'free' || (e.pointerType === 'mouse' && e.button === 2)) return;
   if (!isMyTurn()) return;
   const p = tablePoint(e);
   if (!p) return;
@@ -642,12 +658,16 @@ canvas.addEventListener('pointermove', (e) => {
   if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
-    if (pinchDist > 0 && scene.camMode === 'free') scene.zoomFree(pinchDist / d);
+    if (pinchDist > 0 && scene.camMode !== 'shoot') {
+      scene.zoomView(pinchDist / d);
+      // trọng tâm hai ngón dịch chuyển => xoay/nghiêng góc nhìn
+      scene.orbitView((e.clientX - prev.x) / 2, (e.clientY - prev.y) / 2);
+    }
     pinchDist = d;
     return;
   }
-  if (scene.camMode === 'free') {
-    scene.rotateFree(e.clientX - prev.x, e.clientY - prev.y);
+  if (scene.camMode === 'free' || (e.pointerType === 'mouse' && (e.buttons & 2))) {
+    scene.orbitView(e.clientX - prev.x, e.clientY - prev.y);
     return;
   }
   if (!isMyTurn()) return;
@@ -685,7 +705,8 @@ function endPointer(e: PointerEvent): void {
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('wheel', (e) => { if (screen === 'game' && scene.camMode === 'free') { e.preventDefault(); scene.zoomFree(e.deltaY > 0 ? 1.1 : 0.9); } }, { passive: false });
+canvas.addEventListener('wheel', (e) => { if (screen === 'game' && scene.camMode !== 'shoot') { e.preventDefault(); scene.zoomView(e.deltaY > 0 ? 1.08 : 0.92); } }, { passive: false });
+canvas.addEventListener('dblclick', () => { if (screen === 'game') scene.resetView(); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
@@ -845,7 +866,6 @@ function settings(): void {
   ui.innerHTML = `<div class="screen bg">${backBtn('main')}
     <div class="panel col" style="align-items:stretch"><h2>${ic('gear', 22)} Cài đặt</h2>
       <div><label class="lbl">Biệt danh (không cần tài khoản)</label><input id="sname" maxlength="16" value="${esc(net.name)}" placeholder="Biệt danh của bạn" /></div>
-      <div><label class="lbl">Nhạc nền</label><input class="range" type="range" id="vmusic" min="0" max="1" step="0.05" value="${audio.musicVol}" /></div>
       <div><label class="lbl">Âm thanh hiệu ứng</label><input class="range" type="range" id="vsfx" min="0" max="1" step="0.05" value="${audio.sfxVol}" /></div>
       <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
       ${themePicker()}
@@ -853,7 +873,6 @@ function settings(): void {
       <div class="pmeta" style="margin-top:4px">Trạng thái: ${net.status === 'online' ? '🟢 đã kết nối' : net.status === 'offline' ? '🔴 ngoại tuyến' : '🟡 đang kết nối'} ${net.lastError && net.status !== 'online' ? '· ' + esc(net.lastError) : ''}</div></div>
       <button class="btn gold block" data-act="savesettings">LƯU</button>
     </div></div>`;
-  el<HTMLInputElement>('#vmusic')!.addEventListener('input', (e) => { audio.unlock(); audio.setMusic(Number((e.target as HTMLInputElement).value)); });
   el<HTMLInputElement>('#vsfx')!.addEventListener('input', (e) => { audio.unlock(); audio.setSfx(Number((e.target as HTMLInputElement).value)); audio.click(); });
 }
 
@@ -883,6 +902,16 @@ function act(a: string, node?: HTMLElement): void {
     case 'join': go('join'); break;
     case 'settings': go('settings'); break;
     case 'help': go('help'); break;
+    case 'themes': go('themes'); break;
+    case 'themeovl': {
+      ui.querySelector('.themeovl')?.remove();
+      const d = document.createElement('div');
+      d.className = 'screen sheet themeovl';
+      d.innerHTML = `<div class="sheetbox"><h2>${ic('palette', 22)} Bàn & không gian</h2>${themePicker()}<button class="btn gold" data-act="themeclose">Xong</button></div>`;
+      ui.appendChild(d);
+      break;
+    }
+    case 'themeclose': ui.querySelector('.themeovl')?.remove(); break;
     case 'tlist': go('tlist'); break;
     case 'tcreate': go('tcreate'); break;
     case 'trefresh': net.send({ t: 'tour.list' }); break;
@@ -924,7 +953,7 @@ function act(a: string, node?: HTMLElement): void {
     case 'shoot': shoot(); break;
     case 'pause': pauseMenu(); break;
     case 'camtoggle': { const cl = el('#camlist'); if (cl) cl.hidden = !cl.hidden; break; }
-    case 'mute': { const off = audio.musicVol > 0; audio.setMusic(off ? 0 : 0.5); audio.setSfx(off ? 0 : 0.8); const b = el('#mutebtn'); if (b) b.innerHTML = off ? ic('mute') : ic('vol'); break; }
+    case 'mute': { const off = audio.sfxVol > 0; audio.setSfx(off ? 0 : 0.8); const b = el('#mutebtn'); if (b) b.innerHTML = off ? ic('mute') : ic('vol'); break; }
     case 'placebtn': placing = !placing; updateControls(); break;
     case 'resume': ui.querySelector('.pausebox')?.remove(); break;
     case 'savesettings': {

@@ -89,9 +89,10 @@ function flat(m: Multi, y: number): THREE.BufferGeometry {
 // ---------- texture ----------
 function ballTexture(id: number, aniso: number): THREE.CanvasTexture {
   const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 256;
+  c.width = 1024;
+  c.height = 512;
   const g = c.getContext('2d')!;
+  g.scale(2, 2);
   const col = ballColor(id);
   const stripe = id >= 9;
   g.fillStyle = id === 0 || stripe ? '#f7f4ec' : col;
@@ -127,7 +128,7 @@ function ballTexture(id: number, aniso: number): THREE.CanvasTexture {
 }
 
 function feltTexture(aniso: number): THREE.CanvasTexture {
-  const S = 256;
+  const S = 512;
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d')!;
@@ -143,7 +144,7 @@ function feltTexture(aniso: number): THREE.CanvasTexture {
   g.putImageData(img, 0, 0);
   // sợi nỉ mảnh
   g.globalAlpha = 0.06;
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 1600; i++) {
     g.strokeStyle = Math.random() < 0.5 ? '#ffffff' : '#000000';
     const x = Math.random() * S, y = Math.random() * S, a = Math.random() * 6.28;
     g.beginPath();
@@ -153,14 +154,14 @@ function feltTexture(aniso: number): THREE.CanvasTexture {
   }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(5, 5); // uv tính bằng mét -> mỗi ô ~0.2m
+  t.repeat.set(7, 7); // uv tính bằng mét -> mỗi ô ~0.2m
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = aniso;
   return t;
 }
 
 function woodTexture(aniso: number): THREE.CanvasTexture {
-  const S = 512;
+  const S = 1024;
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d')!;
@@ -170,7 +171,7 @@ function woodTexture(aniso: number): THREE.CanvasTexture {
   grd.addColorStop(1, '#6a3720');
   g.fillStyle = grd;
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < 420; i++) {
     const y = Math.random() * S;
     const a = 0.05 + Math.random() * 0.14;
     g.strokeStyle = Math.random() < 0.55 ? `rgba(30,12,4,${a})` : `rgba(210,140,80,${a * 0.7})`;
@@ -178,7 +179,7 @@ function woodTexture(aniso: number): THREE.CanvasTexture {
     g.beginPath();
     const amp = 1 + Math.random() * 3;
     const ph = Math.random() * 6;
-    for (let x = 0; x <= S; x += 16) {
+    for (let x = 0; x <= S; x += 24) {
       const yy = y + Math.sin(x / 70 + ph) * amp;
       if (x === 0) g.moveTo(x, yy); else g.lineTo(x, yy);
     }
@@ -335,6 +336,9 @@ export class BilliardScene {
   private viewSeatSide = 1;
   /** dịch điểm nhìn theo trục màn hình (chừa chỗ cho HUD) — đơn vị: nửa chiều cao màn hình */
   private lookShift = 0;
+  private viewAz = 0;
+  private viewEl = 0;
+  private viewZoom = 1;
 
   /** Trạng thái ngắm của chính mình và của người khác */
   aim: AimState = { angle: 0, power: 0.5, visible: false, guide: true };
@@ -378,11 +382,11 @@ export class BilliardScene {
 
   constructor(private canvas: HTMLCanvasElement) {
     const dpr = window.devicePixelRatio || 1;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 2, powerPreference: 'high-performance', stencil: false });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', stencil: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.92;
-    this.aniso = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    this.aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.05, 90);
 
     this.scene.background = new THREE.Color(0x120c22);
@@ -516,12 +520,15 @@ export class BilliardScene {
       m.position.y = y;
       G.add(m);
     };
+    const ceiling: THREE.Object3D[] = [];
+    G.userData.ceiling = ceiling;
     const lampBar = () => {
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 0.34), new THREE.MeshBasicMaterial({ color: 0xfff6dd }));
       lamp.position.set(0, 2.6, 0);
       const lampCase = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 0.44), new THREE.MeshStandardMaterial({ color: 0x15101f, roughness: 0.5 }));
       lampCase.position.set(0, 2.68, 0);
       G.add(lamp, lampCase);
+      ceiling.push(lamp, lampCase);
     };
     const orb = (color: number, r: number, x: number, y: number, z: number, emi = 0.3) => {
       const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), new THREE.MeshStandardMaterial({ color, roughness: 0.4, emissive: color, emissiveIntensity: emi }));
@@ -553,6 +560,7 @@ export class BilliardScene {
         const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
         cord.position.set(x, 3.1, 0);
         G.add(shade, bulb, cord);
+        ceiling.push(shade, bulb, cord);
       }
       // tường gỗ + đèn tường + tranh
       const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a2a16, roughness: 0.7 });
@@ -704,6 +712,30 @@ export class BilliardScene {
     }
     pool.renderOrder = 1;
     t.add(pool);
+    // bóng đổ nhẹ dưới chân đệm băng (ambient occlusion giả) cho bàn có chiều sâu
+    const aoC = document.createElement('canvas');
+    aoC.width = 512; aoC.height = 256;
+    {
+      const g = aoC.getContext('2d')!;
+      const e = 38;
+      const edge = (x0: number, y0: number, x1: number, y1: number, rx: number, ry: number, rw: number, rh: number) => {
+        const gr = g.createLinearGradient(x0, y0, x1, y1);
+        gr.addColorStop(0, 'rgba(0,0,0,0.55)');
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr;
+        g.fillRect(rx, ry, rw, rh);
+      };
+      edge(0, 0, e, 0, 0, 0, e, 256); edge(512, 0, 512 - e, 0, 512 - e, 0, e, 256);
+      edge(0, 0, 0, e * 0.8, 0, 0, 512, e * 0.8); edge(0, 256, 0, 256 - e * 0.8, 0, 256 - e * 0.8, 512, e * 0.8);
+    }
+    const aoTex = new THREE.CanvasTexture(aoC);
+    const ao = new THREE.Mesh(flat(feltPoly, 0.0005), new THREE.MeshBasicMaterial({ map: aoTex, transparent: true, depthWrite: false }));
+    {
+      const uv = ao.geometry.getAttribute('uv') as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + innerHX) / (2 * innerHX), (uv.getY(i) + innerHZ) / (2 * innerHZ));
+    }
+    ao.renderOrder = 1;
+    t.add(ao);
 
     // Thân bàn (đá) + khung gỗ có lỗ
     const slatePoly = polygonClipping.difference(inner as never, ...(holes as never[])) as Multi;
@@ -812,7 +844,7 @@ export class BilliardScene {
   }
 
   private buildBalls(): void {
-    const geo = new THREE.SphereGeometry(R, 32, 22);
+    const geo = new THREE.SphereGeometry(R, 48, 32);
     const shadowGeo = new THREE.PlaneGeometry(R * 5.2, R * 5.2).rotateX(-Math.PI / 2);
     const shadowMat = new THREE.MeshBasicMaterial({ map: radialTexture('rgba(0,0,0,0.62)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false });
     for (let id = 0; id < 16; id++) {
@@ -861,7 +893,7 @@ export class BilliardScene {
   // ---------- điều khiển ----------
   setQuality(q: Quality): void {
     this.quality = q;
-    const cap = q === 'low' ? 1 : q === 'medium' ? 1.5 : 2;
+    const cap = q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'high' ? 2.5 : 2;
     this.baseDpr = Math.min(window.devicePixelRatio || 1, cap);
     this.dprScale = 1;
     this.goodWindows = 0;
@@ -901,6 +933,7 @@ export class BilliardScene {
   }
 
   setCamMode(m: CamMode): void {
+    if (m !== this.camMode) this.resetView();
     this.camMode = m;
     this.celebrate = false;
   }
@@ -911,6 +944,21 @@ export class BilliardScene {
 
   /** Chừa chỗ cho thanh HUD: 0 = giữa màn hình, >0 = bàn dịch xuống một chút */
   setLookShift(v: number): void { this.lookShift = v; }
+
+  /** Vuốt (2 ngón / chuột phải) để xoay & nghiêng góc nhìn; từ góc 'trên xuống' tự chuyển sang 3D */
+  orbitView(dx: number, dy: number): void {
+    if (this.camMode === 'top') this.camMode = 'persp';
+    if (this.camMode === 'free') { this.rotateFree(dx, dy); return; }
+    this.viewAz = Math.max(-1.3, Math.min(1.3, this.viewAz - dx * 0.006));
+    this.viewEl = Math.max(-0.75, Math.min(0.55, this.viewEl + dy * 0.005));
+  }
+
+  zoomView(f: number): void {
+    if (this.camMode === 'free') { this.zoomFree(f); return; }
+    this.viewZoom = Math.min(1.5, Math.max(0.5, this.viewZoom * f));
+  }
+
+  resetView(): void { this.viewAz = 0; this.viewEl = 0; this.viewZoom = 1; }
 
   rotateFree(dx: number, dy: number): void {
     this.freeAz -= dx * 0.006;
@@ -1278,6 +1326,16 @@ export class BilliardScene {
     }
   }
 
+  private setOrbitGoal(pos: THREE.Vector3, look: THREE.Vector3, th: number, aspect: number): void {
+    const need = Math.max((W + 1.0) / 2 / th, (L + 0.5) / 2 / (th * aspect));
+    const d = Math.max(1.9, need * 0.9 * this.viewZoom) * 0.95;
+    const el = Math.min(1.5, Math.max(0.2, 0.86 + this.viewEl));
+    const side = this.viewSeatSide;
+    const az = this.viewAz;
+    look.set(0, -0.05, -0.05 * side);
+    pos.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, side * Math.cos(az) * Math.cos(el) * d);
+  }
+
   private updateCamera(dt: number, now: number): void {
     const goalPos = this._gp;
     const goalLook = this._gl;
@@ -1316,21 +1374,15 @@ export class BilliardScene {
       const vFov = (this.camera.fov * Math.PI) / 180;
       const th = Math.tan(vFov / 2);
       if (mode === 'top') {
-        const needH = (W + 0.95) / 2 / th;
-        const needW = (L + 0.85) / 2 / (th * aspect);
-        goalPos.set(0, Math.max(needH, needW), 0.001);
+        const needH = (W + 0.6) / 2 / th;
+        const needW = (L + 0.55) / 2 / (th * aspect);
+        goalPos.set(0, Math.max(needH, needW) * this.viewZoom, 0.001);
         goalLook.set(0, 0, 0);
       } else if (mode === 'persp') {
-        const need = Math.max((W + 1.0) / 2 / th, (L + 0.5) / 2 / (th * aspect));
-        const d = Math.max(2.2, need * 1.02);
-        goalPos.set(0, d * 0.72, d * 0.62 * this.viewSeatSide);
-        goalLook.set(0, -0.05, -0.05 * this.viewSeatSide);
+        this.setOrbitGoal(goalPos, goalLook, th, aspect);
       } else if (mode === 'shoot' && shooting) {
         // đang lăn: lùi lên góc cao để thấy toàn cảnh
-        const need = Math.max((W + 1.0) / 2 / th, (L + 0.5) / 2 / (th * aspect));
-        const d = Math.max(2.2, need * 1.02);
-        goalPos.set(0, d * 0.72, d * 0.62 * this.viewSeatSide);
-        goalLook.set(0, -0.05, -0.05 * this.viewSeatSide);
+        this.setOrbitGoal(goalPos, goalLook, th, aspect);
       } else if (mode === 'shoot') {
         const ang = this.aim.angle;
         goalPos.set(cx - Math.cos(ang) * 0.78, 0.3, cz - Math.sin(ang) * 0.78);
@@ -1344,6 +1396,10 @@ export class BilliardScene {
     const k = 1 - Math.exp(-dt * (mode === 'free' && !inIntro ? 14 : 4.5));
     this.camPos.lerp(goalPos, k);
     this.camLook.lerp(goalLook, k);
+    {
+      const cl = this.envGroups[this.envId]?.userData.ceiling as THREE.Object3D[] | undefined;
+      if (cl) { const vis = this.camPos.y < 1.9; for (const o of cl) o.visible = vis; }
+    }
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.camLook);
     if (this.lookShift !== 0 && (this.camMode === 'top' || this.camMode === 'persp')) {

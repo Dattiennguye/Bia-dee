@@ -9,7 +9,8 @@ class AudioEngine {
   private master: GainNode | null = null;
   private sfxGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
-  musicVol = Number(LS.get('vigo.music') ?? '0.5');
+  /** Nhạc nền đã tắt hẳn — chờ người dùng gửi file nhạc */
+  musicVol = 0;
   sfxVol = Number(LS.get('vigo.sfx') ?? '0.8');
   private musicOn = false;
   private musicTimer: number | null = null;
@@ -69,15 +70,9 @@ class AudioEngine {
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     void this.loadSamples();
-    if (this.musicVol > 0) this.startMusic();
   }
 
-  setMusic(v: number): void {
-    this.musicVol = v;
-    LS.set('vigo.music', String(v));
-    if (this.musicGain) this.musicGain.gain.value = v * 0.35;
-    if (v > 0) this.startMusic(); else this.stopMusic();
-  }
+  setMusic(_v: number): void { /* tắt nhạc nền */ }
 
   setSfx(v: number): void {
     this.sfxVol = v;

@@ -62,3 +62,8 @@ Chất lượng thấp/trung bình/cao (độ phân giải, bóng đổ); menu h
 - 6 bàn: Cổ điển, Hoàng gia (xanh), Nhung đỏ, Ngọc lục bảo (khung đen/đồng vàng), Cyber, Kẹo ngọt.
 - 5 không gian: Lounge neon, Câu lạc bộ, Vũ trụ, Hoàng hôn biển, Đấu trường.
 - Chọn ở Cài đặt hoặc menu tạm dừng khi đang chơi, xem trước ngay; lưu trên máy. Chỉ ảnh hưởng giao diện của riêng bạn.
+
+## v1.4
+- Góc nhìn: 3D đặt gần bàn hơn; **vuốt 2 ngón** (hoặc giữ chuột phải) để xoay/nghiêng trái-phải-lên-xuống, **chụm 2 ngón / lăn chuột** để zoom, nhấp đúp để về mặc định. Từ góc "trên xuống" vuốt sẽ tự chuyển sang 3D. Đèn trần tự ẩn khi camera ở trên cao nên không còn che bàn.
+- Đồ họa sắc nét hơn: luôn bật khử răng cưa, texture nỉ/gỗ/bi độ phân giải cao hơn, bóng đổ nhẹ dưới chân băng.
+- Nhạc nền đã tắt hoàn toàn (chờ file nhạc của người dùng). Chỉ còn tiếng hiệu ứng.
