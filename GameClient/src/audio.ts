@@ -20,7 +20,7 @@ class AudioEngine {
   private async loadSamples(): Promise<void> {
     const ctx = this.ctx;
     if (!ctx) return;
-    for (const n of ['break', 'hit', 'drop']) {
+    for (const n of ['break', 'hit', 'drop', 'click']) {
       try {
         const r = await fetch(`./sfx/${n}.mp3`);
         this.samples[n] = await ctx.decodeAudioData(await r.arrayBuffer());
@@ -43,7 +43,7 @@ class AudioEngine {
   }
 
   breakShot(): void {
-    if (!this.playSample('break', 1)) this.cue(1);
+    this.playSample('break', 1);
   }
 
   /** Phải gọi sau thao tác của người dùng (trình duyệt yêu cầu) */
@@ -121,38 +121,24 @@ class AudioEngine {
     s.stop(t + dur + 0.02);
   }
 
+  /** Bi chạm bi: chỉ dùng mẫu thật */
   ballHit(speed: number): void {
-    if (!this.ctx) return;
     const v = Math.min(1, 0.15 + speed / 4);
-    const f = 2600 + Math.random() * 500;
-    this.tone(f, 0.09, 'triangle', 0.5 * v, this.sfxGain!, 0, f * 0.6);
-    this.tone(f * 1.5, 0.05, 'sine', 0.25 * v, this.sfxGain!);
-    this.noise(0.03, 0.4 * v, 4000, 1);
+    this.playSample('click', 0.25 + 0.75 * v, 0.95 + Math.random() * 0.12);
   }
 
+  /** Bi chạm băng: tiếng "bụp" trầm từ mẫu thật (hạ cao độ) */
   cushion(speed: number): void {
-    if (!this.ctx) return;
     const v = Math.min(1, 0.15 + speed / 3);
-    this.tone(150, 0.14, 'sine', 0.7 * v, this.sfxGain!, 0, 70);
-    this.noise(0.06, 0.25 * v, 600, 0.8);
+    this.playSample('click', 0.15 + 0.5 * v, 0.55 + Math.random() * 0.08);
   }
 
   pocket(): void {
-    if (!this.ctx) return;
-    if (this.playSample('drop', 0.9, 0.95 + Math.random() * 0.1)) return;
-    this.tone(110, 0.25, 'sine', 0.7, this.sfxGain!, 0, 50);
-    this.noise(0.25, 0.3, 900, 2, 0.03);
-    this.tone(1800, 0.05, 'triangle', 0.2, this.sfxGain!, 0.1);
-    this.tone(1400, 0.05, 'triangle', 0.15, this.sfxGain!, 0.18);
+    this.playSample('drop', 0.9, 0.95 + Math.random() * 0.1);
   }
 
   cue(power: number): void {
-    if (!this.ctx) return;
-    const v = 0.3 + power * 0.7;
-    if (this.playSample('hit', 0.35 + 0.65 * power, 0.92 + Math.random() * 0.16)) return;
-    this.tone(900, 0.06, 'square', 0.25 * v, this.sfxGain!, 0, 300);
-    this.noise(0.05, 0.5 * v, 1800, 1.5);
-    this.tone(200, 0.1, 'sine', 0.5 * v, this.sfxGain!);
+    this.playSample('hit', 0.35 + 0.65 * power, 0.92 + Math.random() * 0.16);
   }
 
   click(): void {
