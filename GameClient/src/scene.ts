@@ -312,6 +312,10 @@ export class BilliardScene {
   private cueTex = new Map<number, THREE.CanvasTexture>();
   private cueShadow!: THREE.Mesh;
   private fx: Fx = FXS[0];
+  fxOn = true;
+  spin = { x: 0, y: 0 };
+  private strokeSpin = { x: 0, y: 0 };
+  private camAng = 0;
   private trail!: { pts: THREE.Points; pos: Float32Array; col: Float32Array; base: Float32Array; life: Float32Array; head: number; lx: number; ly: number; hue: number; mats: Record<string, THREE.Texture> };
   private raf = 0;
   private running = false;
@@ -934,13 +938,15 @@ export class BilliardScene {
     m.tip.color.set(k.tip);
   }
 
+  setFxEnabled(on: boolean): void { this.fxOn = on; this.applyAimColor(0); }
+
   setFx(i: number): void {
     this.fx = FXS[i] ?? FXS[0];
     this.applyAimColor(0);
   }
 
   private applyAimColor(now: number): void {
-    const a = this.fx.aim;
+    const a = this.fxOn ? this.fx.aim : 0xffffff;
     const col = (this.sAim.mesh.material as THREE.MeshBasicMaterial).color;
     if (a === 'rainbow') col.setHSL((now / 2500) % 1, 0.9, 0.62); else col.set(a);
   }
@@ -981,7 +987,7 @@ export class BilliardScene {
 
   private updateTrail(dt: number): void {
     const T = this.trail, n = T.life.length;
-    const kind = this.fx.trail;
+    const kind = this.fxOn ? this.fx.trail : 'none';
     const mat = T.pts.material as THREE.PointsMaterial;
     const want = kind === 'hearts' ? T.mats.heart : kind === 'stars' ? T.mats.star : T.mats.glow;
     if (mat.map !== want) { mat.map = want; mat.needsUpdate = true; }
@@ -1180,13 +1186,14 @@ export class BilliardScene {
     this.otherAim = null;
     this.moveCueBall(msg.cueStart.x, msg.cueStart.y);
     this.freezeCamera = true;
-    if (!(this.strokeActive && this.strokeLocal)) { this.startStroke(msg.shot.power, msg.shot.angle); this.strokeLocal = false; }
+    if (!(this.strokeActive && this.strokeLocal)) { this.startStroke(msg.shot.power, msg.shot.angle, { x: msg.shot.spinX ?? 0, y: msg.shot.spinY ?? 0 }); this.strokeLocal = false; }
   }
   private strokeLocal = false;
   private freezeCamera = false;
 
-  private startStroke(power: number, angle: number): void {
+  private startStroke(power: number, angle: number, spin?: { x: number; y: number }): void {
     this.strokeT = 0;
+    this.strokeSpin = spin ? { ...spin } : { ...this.spin };
     this.strokePower = power;
     this.strokeAngle = angle;
     this.strokeActive = true;
@@ -1384,12 +1391,17 @@ export class BilliardScene {
       angle = this.otherAim.angle;
       pull = this.otherAim.power;
     }
-    const gap = R + 0.012 + Math.max(-0.05, pull) * 0.24;
+    // đầu cơ trỏ đúng điểm chạm đã chọn trên bi cái (lệch trái/phải, trên/dưới)
+    const sp = this.strokeActive ? this.strokeSpin : this.aim.visible ? this.spin : { x: 0, y: 0 };
+    const dl = sp.x * 0.6 * R;
+    const dh = sp.y * 0.6 * R;
+    const depth = Math.sqrt(Math.max(1e-6, R * R - dl * dl - dh * dh));
+    const gap = depth + 0.006 + Math.max(-0.05, pull) * 0.24;
     const cx = c.x - L / 2;
     const cz = c.y - W / 2;
-    this.cueGroup.position.set(cx - Math.cos(angle) * gap, R + 0.02, cz - Math.sin(angle) * gap);
+    this.cueGroup.position.set(cx - Math.cos(angle) * gap - Math.sin(angle) * dl, R + dh + 0.002, cz - Math.sin(angle) * gap + Math.cos(angle) * dl);
     this.cueGroup.rotation.set(0, -angle, 0);
-    this.cueGroup.rotateZ(-0.06);
+    this.cueGroup.rotateZ(-0.03);
     this.cueShadow.position.set(this.cueGroup.position.x + 0.03, 0.0022, this.cueGroup.position.z + 0.035);
     this.cueShadow.rotation.set(0, -angle, 0);
   }
@@ -1430,7 +1442,7 @@ export class BilliardScene {
     const ox = -L / 2;
     const oz = -W / 2;
     const scroll = (now / 1000) * 0.9;
-    if (this.fx.aim === 'rainbow') this.applyAimColor(now);
+    if (this.fxOn && this.fx.aim === 'rainbow') this.applyAimColor(now);
     this.sAim.set(c.x + ox, c.y + oz, gx + ox, gy + oz, 0.004, scroll);
     this.ghostBall.visible = true;
     this.ghostBall.position.set(gx + ox, R, gy + oz);
@@ -1520,7 +1532,8 @@ export class BilliardScene {
           goalPos.copy(this.frozen.pos);
           goalLook.copy(this.frozen.look);
         } else {
-          const ang = this.aim.visible || !this.otherAim ? this.aim.angle : this.otherAim.angle;
+          const ang = this.aim.visible ? this.aim.angle : this.otherAim ? this.otherAim.angle : this.strokeActive ? this.strokeAngle : this.camAng;
+          this.camAng = ang;
           const yaw = ang + this.viewAz;
           const e = Math.min(1.35, Math.max(0.06, 0.2 + this.viewEl));
           const dist = 0.8 * this.viewZoom;

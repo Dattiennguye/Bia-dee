@@ -181,6 +181,7 @@ function themes(): void {
   scene.setBalls(initialBalls('eightball', 7).map((b) => ({ id: b.id, x: b.x, y: b.y, pocketed: b.pocketed })));
 }
 
+let fxOn = LS.get('vigo.fxon') !== '0';
 let guideOn = LS.get('vigo.guide') !== '0';
 let shopTab: 'c' | 'a' | 'f' = 'c';
 function applyCosmetics(p: { a: number; c: number; f: number }): void { scene.setCueSkin(p.c); scene.setFx(p.f); }
@@ -416,12 +417,13 @@ function bindSpin(): void {
     const lim = 0.7;
     if (m > lim) { nx = (nx / m) * lim; ny = (ny / m) * lim; }
     spin = { x: nx, y: -ny };
+    scene.spin = spin;
     const d = el('#spindot');
     if (d) { d.style.left = 50 + nx * 50 + '%'; d.style.top = 50 + ny * 50 + '%'; }
   };
   sb.addEventListener('pointerdown', (e) => { sb.setPointerCapture(e.pointerId); set(e); });
   sb.addEventListener('pointermove', (e) => { if (sb.hasPointerCapture(e.pointerId)) set(e); });
-  sb.addEventListener('dblclick', () => { spin = { x: 0, y: 0 }; const d = el('#spindot'); if (d) { d.style.left = '50%'; d.style.top = '50%'; } });
+  sb.addEventListener('dblclick', () => { spin = { x: 0, y: 0 }; scene.spin = spin; const d = el('#spindot'); if (d) { d.style.left = '50%'; d.style.top = '50%'; } });
 }
 
 /** Bản đồ nhỏ góc dưới trái */
@@ -728,6 +730,11 @@ canvas.addEventListener('pointermove', (e) => {
     scene.orbitView(e.clientX - prev.x, e.clientY - prev.y);
     return;
   }
+  if (!isMyTurn() && !placing && pointers.size === 1) {
+    // không phải lượt mình: vẫn xoay/nghiêng góc nhìn tự do
+    scene.orbitView(e.clientX - prev.x, e.clientY - prev.y);
+    return;
+  }
   if (!isMyTurn()) return;
   const p = tablePoint(e);
   if (!p) return;
@@ -933,6 +940,7 @@ function settings(): void {
       <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
       ${themePicker()}
       <div><label class="lbl">Đường kẻ ngắm bắn</label><div class="chips"><button class="chip ${guideOn ? 'on' : ''}" data-guide="1">Bật</button><button class="chip ${guideOn ? '' : 'on'}" data-guide="0">Tắt</button></div></div>
+      <div><label class="lbl">Vệt màu của cơ & bi</label><div class="chips"><button class="chip ${fxOn ? 'on' : ''}" data-fxon="1">Bật</button><button class="chip ${fxOn ? '' : 'on'}" data-fxon="0">Tắt</button></div></div>
       <div><label class="lbl">Máy chủ game</label><input id="sserver" value="${esc(net.server)}" placeholder="vd: bida.example.com" autocapitalize="none" autocomplete="off" />
       <div class="pmeta" style="margin-top:4px">Trạng thái: ${net.status === 'online' ? '🟢 đã kết nối' : net.status === 'offline' ? '🔴 ngoại tuyến' : '🟡 đang kết nối'} ${net.lastError && net.status !== 'online' ? '· ' + esc(net.lastError) : ''}</div></div>
       <button class="btn gold block" data-act="savesettings">LƯU</button>
@@ -1084,6 +1092,8 @@ ui.addEventListener('click', (e) => {
   if (ls) { const [l, tn] = ls.dataset.lampset!.split('|').map(Number); lamp = { level: l, tone: tn }; scene.setLamp(l, tn); LS.set('vigo.lamp', JSON.stringify(lamp)); ui.querySelectorAll<HTMLInputElement>('[data-lamp]').forEach((r) => { r.value = String(lamp[r.dataset.lamp as 'level' | 'tone']); }); audio.click(); return; }
   const gd = t.closest('[data-guide]') as HTMLElement | null;
   if (gd) { audio.click(); guideOn = gd.dataset.guide === '1'; LS.set('vigo.guide', guideOn ? '1' : '0'); scene.aim.guide = guideOn; gd.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === gd)); return; }
+  const fo = t.closest('[data-fxon]') as HTMLElement | null;
+  if (fo) { audio.click(); fxOn = fo.dataset.fxon === '1'; LS.set('vigo.fxon', fxOn ? '1' : '0'); scene.setFxEnabled(fxOn); fo.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === fo)); return; }
   const em = t.closest('[data-emote]') as HTMLElement | null;
   if (em) { net.send({ t: 'emote', e: Number(em.dataset.emote) }); el('#emotebar')?.setAttribute('hidden', ''); return; }
   const sp = t.closest('[data-pick]') as HTMLElement | null;
@@ -1341,6 +1351,7 @@ scene.setQuality(quality);
 scene.setTable(LS.get('vigo.table') || 'classic');
 scene.setEnv(LS.get('vigo.env') || 'lounge');
 scene.setLamp(lamp.level, lamp.tone);
+scene.setFxEnabled(fxOn);
 applyCosmetics(prof);
 scene.start();
 scene.setCamMode('cinema');
