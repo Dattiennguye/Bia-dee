@@ -683,7 +683,7 @@ function aimTo(p: { x: number; y: number }, touch: boolean): void {
 canvas.addEventListener('pointerdown', (e) => {
   audio.unlock();
   if (screen !== 'game') return;
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* bỏ qua */ }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
@@ -694,19 +694,21 @@ canvas.addEventListener('pointerdown', (e) => {
   if (scene.camMode === 'free' || (e.pointerType === 'mouse' && e.button === 2)) return;
   if (!isMyTurn()) return;
   const p = tablePoint(e);
-  if (!p) return;
+  const touch = e.pointerType !== 'mouse';
+  // cảm ứng: vuốt ở bất kỳ đâu (hai bên màn hình) đều xoay ngắm, không cần chạm trúng mặt bàn
+  if (!p && !touch) return;
   if (placing) {
+    if (!p) return;
     if (!room?.game?.ballInHand) return;
     scene.moveCueBall(Math.min(L - R, Math.max(R, p.x)), Math.min(W - R, Math.max(R, p.y)));
     updateControls();
     return;
   }
-  const touch = e.pointerType !== 'mouse';
   const c = scene.ballPos(0);
   // bi cái đang "trong tay": chạm vào chính bi cái để đặt lại
-  if (room?.game?.ballInHand && Math.hypot(p.x - c.x, p.y - c.y) < 0.07) { placing = true; updateControls(); return; }
-  aimDrag = { touch, prevAng: Math.atan2(p.y - c.y, p.x - c.x), x: e.clientX };
-  if (!touch) aimTo(p, false);
+  if (p && room?.game?.ballInHand && Math.hypot(p.x - c.x, p.y - c.y) < 0.07) { placing = true; updateControls(); return; }
+  aimDrag = { touch, prevAng: p ? Math.atan2(p.y - c.y, p.x - c.x) : 0, x: e.clientX };
+  if (!touch && p) aimTo(p, false);
   else if (!edgeRaf) edgeSpin(0);
 });
 
@@ -737,8 +739,9 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (!isMyTurn()) return;
   const p = tablePoint(e);
-  if (!p) return;
+  if (!p && !aimDrag?.touch) return;
   if (placing) {
+    if (!p) return;
     if (e.buttons || e.pointerType !== 'mouse') { scene.moveCueBall(Math.min(L - R, Math.max(R, p.x)), Math.min(W - R, Math.max(R, p.y))); updateControls(); }
     return;
   }
@@ -751,7 +754,7 @@ canvas.addEventListener('pointermove', (e) => {
       // sau cơ: vuốt dọc để nâng/hạ camera
       if (scene.camMode === 'shoot') scene.orbitView(0, (e.clientY - prev.y) * 0.7);
       sendAim();
-    } else aimTo(p, false);
+    } else if (p) aimTo(p, false);
   }
 });
 

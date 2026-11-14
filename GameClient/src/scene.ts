@@ -1193,6 +1193,7 @@ export class BilliardScene {
 
   private startStroke(power: number, angle: number, spin?: { x: number; y: number }): void {
     this.strokeT = 0;
+    this.camAng = angle;
     this.strokeSpin = spin ? { ...spin } : { ...this.spin };
     this.strokePower = power;
     this.strokeAngle = angle;
@@ -1523,15 +1524,8 @@ export class BilliardScene {
       } else if (mode === 'persp') {
         this.setOrbitGoal(goalPos, goalLook, th, aspect);
       } else if (mode === 'shoot') {
-        if (this.freezeCamera && !this.frozen) {
-          this.frozen = { pos: this.camPos.clone(), look: this.camLook.clone() };
-        }
         this.freezeCamera = false;
-        if (shooting && this.frozen) {
-          // đang lăn bi: giữ nguyên góc sau cơ, không bay sang góc khác
-          goalPos.copy(this.frozen.pos);
-          goalLook.copy(this.frozen.look);
-        } else {
+        {
           const ang = this.aim.visible ? this.aim.angle : this.otherAim ? this.otherAim.angle : this.strokeActive ? this.strokeAngle : this.camAng;
           this.camAng = ang;
           const yaw = ang + this.viewAz;
@@ -1540,7 +1534,6 @@ export class BilliardScene {
           goalPos.set(cx - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, cz - Math.sin(yaw) * Math.cos(e) * dist);
           const f = Math.max(0, Math.cos(this.viewAz));
           goalLook.set(cx + Math.cos(ang) * 0.9 * f, 0.0, cz + Math.sin(ang) * 0.9 * f);
-          if (!shooting) this.frozen = null;
         }
       } else if (mode === 'free') {
         const sp = Math.sin(this.freePol);
