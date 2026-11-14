@@ -40,6 +40,11 @@ jobs:
           # Toàn màn hình, tai thỏ, tần số quét cao
           cp android-patch/MainActivity.java android/app/src/main/java/vn/vigo/billiardsparty/MainActivity.java
           grep -n "SHORT_EDGES" android/app/src/main/java/vn/vigo/billiardsparty/MainActivity.java
+          # Biểu tượng ứng dụng (xoá icon thích ứng mặc định để dùng ảnh của VIGO)
+          RES=android/app/src/main/res
+          rm -rf "$RES"/mipmap-anydpi-v26 "$RES"/drawable-v24/ic_launcher_foreground.xml "$RES"/drawable/ic_launcher_background.xml
+          cp -r android-patch/res/mipmap-* "$RES"/
+          find "$RES" -name "ic_launcher*" | sort
       - name: Build APK
         working-directory: GameClient/android
         run: ./gradlew assembleDebug --no-daemon
