@@ -181,6 +181,7 @@ function themes(): void {
   scene.setBalls(initialBalls('eightball', 7).map((b) => ({ id: b.id, x: b.x, y: b.y, pocketed: b.pocketed })));
 }
 
+let guideOn = LS.get('vigo.guide') !== '0';
 let shopTab: 'c' | 'a' | 'f' = 'c';
 function applyCosmetics(p: { a: number; c: number; f: number }): void { scene.setCueSkin(p.c); scene.setFx(p.f); }
 const profOfSeat = (seat: number) => room?.players.find((x) => x.seat === seat)?.prof ?? prof;
@@ -292,13 +293,13 @@ let msgFade = 0;
 let dialTotal = 0;
 
 function game(): void {
+  scene.aim.guide = guideOn;
   inGameScreenStart = performance.now();
   ui.innerHTML = `<div class="hud">
     <div class="tl"><div class="players" id="players"></div><div class="frames" id="frames"></div></div>
     <div class="tc" id="tc"></div>
     <div class="tr">
       <button class="rbtn" data-act="camtoggle" id="cambtn" aria-label="Góc nhìn"><span id="camicon">${CAM_ICON[scene.camMode]}</span></button>
-      <button class="rbtn" data-act="themeovl" aria-label="Giao diện">${ic('palette')}</button>
       <button class="rbtn" data-act="emotebar" aria-label="Biểu cảm">😀</button>
       <button class="rbtn" data-act="mute" id="mutebtn" aria-label="Âm thanh">${audio.sfxVol > 0 ? ic('vol') : ic('mute')}</button>
     </div>
@@ -931,6 +932,7 @@ function settings(): void {
       <div><label class="lbl">Âm thanh hiệu ứng</label><input class="range" type="range" id="vsfx" min="0" max="1" step="0.05" value="${audio.sfxVol}" /></div>
       <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
       ${themePicker()}
+      <div><label class="lbl">Đường kẻ ngắm bắn</label><div class="chips"><button class="chip ${guideOn ? 'on' : ''}" data-guide="1">Bật</button><button class="chip ${guideOn ? '' : 'on'}" data-guide="0">Tắt</button></div></div>
       <div><label class="lbl">Máy chủ game</label><input id="sserver" value="${esc(net.server)}" placeholder="vd: bida.example.com" autocapitalize="none" autocomplete="off" />
       <div class="pmeta" style="margin-top:4px">Trạng thái: ${net.status === 'online' ? '🟢 đã kết nối' : net.status === 'offline' ? '🔴 ngoại tuyến' : '🟡 đang kết nối'} ${net.lastError && net.status !== 'online' ? '· ' + esc(net.lastError) : ''}</div></div>
       <button class="btn gold block" data-act="savesettings">LƯU</button>
@@ -1067,7 +1069,6 @@ function pauseMenu(): void {
   d.innerHTML = `<div class="panel col" style="align-items:stretch"><h2>Tạm dừng</h2>
     <div class="sub">Ván đấu trực tuyến vẫn tiếp tục khi bạn mở menu.</div>
     <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
-    ${themePicker()}
     <button class="btn gold block" data-act="resume">${ic('play', 18)} TIẾP TỤC</button>
     <button class="btn ghost block" data-act="leave">${ic('exit', 18)} RỜI TRẬN</button></div>`;
   ui.appendChild(d);
@@ -1081,6 +1082,8 @@ ui.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
   const ls = t.closest('[data-lampset]') as HTMLElement | null;
   if (ls) { const [l, tn] = ls.dataset.lampset!.split('|').map(Number); lamp = { level: l, tone: tn }; scene.setLamp(l, tn); LS.set('vigo.lamp', JSON.stringify(lamp)); ui.querySelectorAll<HTMLInputElement>('[data-lamp]').forEach((r) => { r.value = String(lamp[r.dataset.lamp as 'level' | 'tone']); }); audio.click(); return; }
+  const gd = t.closest('[data-guide]') as HTMLElement | null;
+  if (gd) { audio.click(); guideOn = gd.dataset.guide === '1'; LS.set('vigo.guide', guideOn ? '1' : '0'); scene.aim.guide = guideOn; gd.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === gd)); return; }
   const em = t.closest('[data-emote]') as HTMLElement | null;
   if (em) { net.send({ t: 'emote', e: Number(em.dataset.emote) }); el('#emotebar')?.setAttribute('hidden', ''); return; }
   const sp = t.closest('[data-pick]') as HTMLElement | null;
