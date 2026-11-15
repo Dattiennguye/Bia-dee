@@ -349,6 +349,11 @@ export class BilliardScene {
   /** dịch điểm nhìn theo trục màn hình (chừa chỗ cho HUD) — đơn vị: nửa chiều cao màn hình */
   private lookShift = 0;
   private focus = { x: 0, z: 0, yaw: 0, init: false };
+  /** hệ số gần/xa của góc nhìn (0.75 gần · 1 vừa · 1.35 xa) */
+  camDist = 1;
+  private peek = false;
+  private peekT = 0;
+  setPeek(on: boolean): void { this.peek = on; }
   private overview = false;
   private blend = 0; // 0 = toàn cảnh, 1 = sau cơ
   private orbSlots = { follow: { az: 0, el: 0, z: 1 }, over: { az: 0, el: 0, z: 1 } };
@@ -1541,7 +1546,7 @@ export class BilliardScene {
       } else if (mode === 'shoot') {
         this.freezeCamera = false;
         // 1) tư thế toàn cảnh
-        { const o = this.overview ? { az: this.viewAz, el: this.viewEl, z: this.viewZoom } : this.orbSlots.over; this.setOrbitGoal(this._gp2, this._gl2, th, aspect, o.az, o.el, o.z); }
+        { const o = this.overview ? { az: this.viewAz, el: this.viewEl, z: this.viewZoom } : this.orbSlots.over; this.setOrbitGoal(this._gp2, this._gl2, th, aspect, o.az, o.el, o.z * Math.sqrt(this.camDist)); }
         // 2) tư thế sau cơ
         const ang = this.aim.visible ? this.aim.angle : this.otherAim ? this.otherAim.angle : this.strokeActive ? this.strokeAngle : this.camAng;
         this.camAng = ang;
@@ -1556,7 +1561,7 @@ export class BilliardScene {
         F.yaw += dy * (1 - Math.exp(-dt * 24));
         const yaw = F.yaw + (this.overview ? 0 : this.viewAz);
         const e = Math.min(1.35, Math.max(0.06, 0.2 + (this.overview ? 0 : this.viewEl)));
-        const dist = 0.8 * (this.overview ? 1 : this.viewZoom);
+        const dist = 0.8 * this.camDist * (this.overview ? 1 : this.viewZoom);
         goalPos.set(F.x - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, F.z - Math.sin(yaw) * Math.cos(e) * dist);
         const f = this.overview ? 1 : Math.max(0, Math.cos(this.viewAz));
         goalLook.set(F.x + Math.cos(F.yaw) * 0.9 * f, 0.0, F.z + Math.sin(F.yaw) * 0.9 * f);
@@ -1573,6 +1578,19 @@ export class BilliardScene {
         goalPos.set(Math.cos(this.freeAz) * this.freeDist * sp, Math.cos(this.freePol) * this.freeDist, Math.sin(this.freeAz) * this.freeDist * sp);
         goalLook.set(0, 0, 0);
       }
+    }
+    // giữ minimap: nhìn từ trên xuống toàn bàn để quan sát chiến thuật, thả tay thì về góc cũ
+    this.peekT += Math.max(-dt / 0.45, Math.min(dt / 0.45, (this.peek ? 1 : 0) - this.peekT));
+    if (this.peekT > 0.001 && !this.celebrate && !inIntro && mode !== 'top') {
+      const vf = (this.camera.fov * Math.PI) / 180;
+      const th2 = Math.tan(vf / 2);
+      const h = Math.max((W + 0.6) / 2 / th2, (L + 0.55) / 2 / (th2 * aspect));
+      const t = this.peekT;
+      const sm = t * t * t * (t * (t * 6 - 15) + 10);
+      this._gp2.set(0, h, 0.001);
+      this._gl2.set(0, 0, 0);
+      goalPos.lerp(this._gp2, sm);
+      goalLook.lerp(this._gl2, sm);
     }
     const k = 1 - Math.exp(-dt * (mode === 'free' && !inIntro ? 14 : mode === 'shoot' && !inIntro ? (this.blend > 0.999 ? 60 : 9) : 4.5));
     this.camPos.lerp(goalPos, k);

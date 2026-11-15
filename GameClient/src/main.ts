@@ -103,6 +103,7 @@ function vibrate(ms: number): void {
 // ============ điều hướng ============
 function go(s: Screen): void {
   screen = s;
+  scene.setPeek(false);
   scene.menuMode = s !== 'game' && s !== 'result';
   clearInterval(timerHandle);
   clearInterval(miniHandle);
@@ -181,6 +182,8 @@ function themes(): void {
   scene.setBalls(initialBalls('eightball', 7).map((b) => ({ id: b.id, x: b.x, y: b.y, pocketed: b.pocketed })));
 }
 
+const CAM_DIST: Array<[string, number]> = [['Gần', 0.75], ['Vừa', 1], ['Xa', 1.35]];
+let camDist = Number(LS.get('vigo.camdist')) || 1;
 let fxOn = LS.get('vigo.fxon') !== '0';
 let guideOn = LS.get('vigo.guide') !== '0';
 let shopTab: 'c' | 'a' | 'f' = 'c';
@@ -318,6 +321,13 @@ function game(): void {
       <div class="gtrack" id="gtrack"><div class="gfill" id="gfill"></div><div class="gticks"></div><div class="gcue" id="gcue"></div><div class="ghint">KÉO XUỐNG · THẢ ĐỂ ĐÁNH</div></div>
     </div>
   </div>`;
+  const mini = el<HTMLCanvasElement>('#mini');
+  if (mini) {
+    const on = (v: boolean) => (e: Event) => { e.preventDefault(); scene.setPeek(v); };
+    mini.addEventListener('pointerdown', (e) => { try { mini.setPointerCapture(e.pointerId); } catch { /* bỏ qua */ } scene.setPeek(true); });
+    for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) mini.addEventListener(t, () => scene.setPeek(false));
+    mini.addEventListener('contextmenu', on(false));
+  }
   bindGauge();
   bindSpin();
   bindDial();
@@ -949,6 +959,7 @@ function settings(): void {
       <div><label class="lbl">Âm thanh hiệu ứng</label><input class="range" type="range" id="vsfx" min="0" max="1" step="0.05" value="${audio.sfxVol}" /></div>
       <div><label class="lbl">Chất lượng đồ họa</label><div class="chips">${(['auto', 'low', 'medium', 'high'] as Quality[]).map((q) => `<button class="chip ${quality === q ? 'on' : ''}" data-q="${q}">${{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[q]}</button>`).join('')}</div></div>
       ${themePicker()}
+      <div><label class="lbl">Góc nhìn gần / xa</label><div class="chips">${CAM_DIST.map(([n, v]) => `<button class="chip ${camDist === v ? 'on' : ''}" data-camd="${v}">${n}</button>`).join('')}</div></div>
       <div><label class="lbl">Đường kẻ ngắm bắn</label><div class="chips"><button class="chip ${guideOn ? 'on' : ''}" data-guide="1">Bật</button><button class="chip ${guideOn ? '' : 'on'}" data-guide="0">Tắt</button></div></div>
       <div><label class="lbl">Vệt màu của cơ & bi</label><div class="chips"><button class="chip ${fxOn ? 'on' : ''}" data-fxon="1">Bật</button><button class="chip ${fxOn ? '' : 'on'}" data-fxon="0">Tắt</button></div></div>
       <div><label class="lbl">Máy chủ game</label><input id="sserver" value="${esc(net.server)}" placeholder="vd: bida.example.com" autocapitalize="none" autocomplete="off" />
@@ -1102,6 +1113,8 @@ ui.addEventListener('click', (e) => {
   if (ls) { const [l, tn] = ls.dataset.lampset!.split('|').map(Number); lamp = { level: l, tone: tn }; scene.setLamp(l, tn); LS.set('vigo.lamp', JSON.stringify(lamp)); ui.querySelectorAll<HTMLInputElement>('[data-lamp]').forEach((r) => { r.value = String(lamp[r.dataset.lamp as 'level' | 'tone']); }); audio.click(); return; }
   const gd = t.closest('[data-guide]') as HTMLElement | null;
   if (gd) { audio.click(); guideOn = gd.dataset.guide === '1'; LS.set('vigo.guide', guideOn ? '1' : '0'); scene.aim.guide = guideOn; gd.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === gd)); return; }
+  const cd = t.closest('[data-camd]') as HTMLElement | null;
+  if (cd) { audio.click(); camDist = Number(cd.dataset.camd); LS.set('vigo.camdist', String(camDist)); scene.camDist = camDist; cd.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === cd)); return; }
   const fo = t.closest('[data-fxon]') as HTMLElement | null;
   if (fo) { audio.click(); fxOn = fo.dataset.fxon === '1'; LS.set('vigo.fxon', fxOn ? '1' : '0'); scene.setFxEnabled(fxOn); fo.parentElement?.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === fo)); return; }
   const em = t.closest('[data-emote]') as HTMLElement | null;
@@ -1362,6 +1375,7 @@ scene.setTable(LS.get('vigo.table') || 'classic');
 scene.setEnv(LS.get('vigo.env') || 'lounge');
 scene.setLamp(lamp.level, lamp.tone);
 scene.setFxEnabled(fxOn);
+scene.camDist = camDist;
 applyCosmetics(prof);
 scene.start();
 scene.setCamMode('cinema');

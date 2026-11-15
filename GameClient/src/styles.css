@@ -260,3 +260,4 @@ label.lbl { font-size: 13px; color: var(--muted); font-weight: 700; text-transfo
 .cuepv .ct { width: 3%; } .cuepv .cs { width: 5%; } .cuepv .cr { width: 2%; } .cuepv .cb { flex: 1; } .cuepv .ce { width: 3%; background: #111; }
 .cuepv { transform: scaleX(-1); }
 .fxpv { width: 100%; height: 14px; border-radius: 7px; margin: 10px 0 6px; background: linear-gradient(90deg, transparent, var(--c1), var(--c2)); box-shadow: 0 0 10px var(--c1); }
+.mini { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: zoom-in; }
