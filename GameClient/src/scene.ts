@@ -283,7 +283,9 @@ interface BallView {
   x: number;
   y: number;
   pocketed: boolean;
-  sink: { t0: number; from: THREE.Vector3; to: THREE.Vector3 } | null;
+  sink: { last: number; hole: number; x: number; z: number; y: number; vx: number; vz: number; vy: number; falling: boolean } | null;
+  lvx: number;
+  lvz: number;
 }
 
 export interface AimState {
@@ -878,7 +880,7 @@ export class BilliardScene {
       shadow.visible = false;
       shadow.renderOrder = 2;
       this.scene.add(mesh, shadow);
-      this.balls.push({ id, mesh, shadow, matStd, matPhys, x: 0, y: 0, pocketed: true, sink: null });
+      this.balls.push({ id, mesh, shadow, matStd, matPhys, x: 0, y: 0, pocketed: true, sink: null, lvx: 0, lvz: 0 });
     }
   }
 
@@ -1155,6 +1157,7 @@ export class BilliardScene {
       if (!b) continue;
       b.pocketed = s.pocketed;
       b.sink = null;
+      b.matStd.color.setScalar(1); b.matPhys.color.setScalar(1);
       b.mesh.visible = !s.pocketed;
       b.shadow.visible = !s.pocketed && this.quality !== 'high';
       b.matStd.color.setScalar(1);
@@ -1312,18 +1315,10 @@ export class BilliardScene {
 
   private updatePlayback(now: number): void {
     for (const b of this.balls) {
-      if (b.sink) {
-        const k = Math.min(1, (now - b.sink.t0) / 320);
-        b.mesh.position.lerpVectors(b.sink.from, b.sink.to, k);
-        const s = 1 - 0.18 * k;
-        b.mesh.scale.setScalar(s);
-        const dark = 1 - 0.85 * k;
-        b.matStd.color.setScalar(dark);
-        b.matPhys.color.setScalar(dark);
-        b.shadow.visible = false;
-        if (k >= 1) { b.mesh.visible = false; b.sink = null; b.mesh.scale.setScalar(1); b.matStd.color.setScalar(1); b.matPhys.color.setScalar(1); }
-      }
+      if (b.sink) this.updateSink(b, now);
     }
+    const dtp = Math.max(0.004, Math.min(0.1, (now - this.prevPlayNow) / 1000));
+    this.prevPlayNow = now;
     const p = this.play;
     if (!p) return;
     const t = (now - p.t0) / 1000;
@@ -1374,6 +1369,7 @@ export class BilliardScene {
       }
       const dx = x - b.x;
       const dy = y - b.y;
+      b.lvx = dx / dtp; b.lvz = dy / dtp;
       const dist = Math.hypot(dx, dy);
       if (dist > 1e-6 && dist < 0.5) {
         this._v.set(dy, 0, -dx).normalize();
@@ -1385,16 +1381,74 @@ export class BilliardScene {
     if (k0 >= msg.frameCount - 1 && p.evIdx >= msg.events.length) this.finishPlay();
   }
 
-  private sinkBall(b: BallView, now: number): void {
-    let best = 0;
-    let bd = Infinity;
-    for (let i = 0; i < POCKETS.length; i++) {
-      const d = Math.hypot(POCKETS[i].x - b.x, POCKETS[i].y - b.y);
-      if (d < bd) { bd = d; best = i; }
+  private prevPlayNow = 0;
+
+  /** Bi lọt lỗ: lăn nốt vào miệng lỗ rồi RƠI TỰ DO trong giếng (trọng lực), không xuyên qua nỉ/băng */
+  private sinkBall(b: BallView, now: number, pocket?: number): void {
+    let best = pocket ?? 0;
+    if (pocket === undefined) {
+      let bd = Infinity;
+      for (let i = 0; i < POCKETS.length; i++) {
+        const d = Math.hypot(POCKETS[i].x - b.x, POCKETS[i].y - b.y);
+        if (d < bd) { bd = d; best = i; }
+      }
     }
-    const h = HOLES[best];
-    b.sink = { t0: now, from: b.mesh.position.clone(), to: new THREE.Vector3(h.x, -0.14, h.z) };
+    const sp = Math.hypot(b.lvx, b.lvz);
+    const cap = sp > 3 ? 3 / sp : 1;
+    b.sink = { last: now, hole: best, x: b.mesh.position.x, z: b.mesh.position.z, y: b.mesh.position.y, vx: b.lvx * cap, vz: b.lvz * cap, vy: 0, falling: false };
     b.pocketed = true;
+  }
+
+  private updateSink(b: BallView, now: number): void {
+    const S = b.sink!;
+    const dt = Math.min(0.04, Math.max(0.001, (now - S.last) / 1000));
+    S.last = now;
+    const h = HOLES[S.hole];
+    const allowed = Math.max(0.02, h.r - R - 0.002); // bi nằm trọn trong miệng lỗ
+    const ox = S.x, oz = S.z;
+    let dx = S.x - h.x, dz = S.z - h.z;
+    let d = Math.hypot(dx, dz);
+    if (!S.falling) {
+      // còn trên mép: lăn thẳng vào miệng lỗ (giữ độ cao bi) rồi mới rơi
+      const step = Math.max(1.2, Math.hypot(S.vx, S.vz)) * dt;
+      const nd = Math.max(allowed, d - step);
+      const k = d > 1e-6 ? nd / d : 0;
+      S.x = h.x + dx * k; S.z = h.z + dz * k;
+      if (nd <= allowed + 1e-5) {
+        S.falling = true;
+        // vận tốc ngang còn lại hướng vào trong giếng, giảm do va thành lỗ
+        S.vx *= 0.5; S.vz *= 0.5;
+      }
+    } else {
+      S.vy -= 9.81 * dt;
+      S.y += S.vy * dt;
+      S.x += S.vx * dt; S.z += S.vz * dt;
+      const damp = Math.max(0, 1 - 2.5 * dt);
+      S.vx *= damp; S.vz *= damp;
+      dx = S.x - h.x; dz = S.z - h.z; d = Math.hypot(dx, dz);
+      if (d > allowed) {
+        const nx = dx / d, nz = dz / d;
+        S.x = h.x + nx * allowed; S.z = h.z + nz * allowed;
+        const vn = S.vx * nx + S.vz * nz;
+        if (vn > 0) { S.vx -= 1.4 * vn * nx; S.vz -= 1.4 * vn * nz; }
+      }
+    }
+    b.mesh.position.set(S.x, S.y, S.z);
+    const mv = Math.hypot(S.x - ox, S.z - oz);
+    if (mv > 1e-6) {
+      this._v.set(S.z - oz, 0, -(S.x - ox)).normalize();
+      this._q.setFromAxisAngle(this._v, mv / R);
+      b.mesh.quaternion.premultiply(this._q);
+    }
+    b.shadow.visible = S.falling ? false : b.shadow.visible;
+    const depth = Math.max(0, R - S.y);
+    const dark = Math.max(0.05, 1 - depth / 0.14);
+    b.matStd.color.setScalar(dark);
+    b.matPhys.color.setScalar(dark);
+    if (S.y < -0.15) {
+      b.mesh.visible = false; b.sink = null; b.shadow.visible = false;
+      b.matStd.color.setScalar(1); b.matPhys.color.setScalar(1);
+    }
   }
 
   private onEvent(e: TableEvent, now: number): void {
@@ -1403,7 +1457,7 @@ export class BilliardScene {
       this.cinemaFocus = new THREE.Vector3(pk.x, 0.05, pk.z);
       this.cinemaFocusUntil = now + 1100;
       const b = this.balls[e.ball];
-      if (!b.sink && !b.pocketed) this.sinkBall(b, now);
+      if (!b.sink && !b.pocketed) this.sinkBall(b, now, e.pocket);
     }
     if (!this.onEventSound) return;
     if (e.k === 'cue') { if (this.breakShot) audio.breakShot(); else audio.cue(Math.min(1, e.speed / 8.5)); }
