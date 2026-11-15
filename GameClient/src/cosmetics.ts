@@ -69,6 +69,9 @@ export function cueTexture(s: CueSkin): HTMLCanvasElement {
     case 'gradient': { const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, acc); gr.addColorStop(1, butt); g.fillStyle = gr; g.fillRect(0, 0, W, H); break; }
     default: break;
   }
+  // vân gỗ dọc thân + vết xước nhỏ do sử dụng
+  for (let i = 0; i < 70; i++) { g.strokeStyle = `rgba(0,0,0,${0.04 + Math.random() * 0.08})`; g.lineWidth = 0.6; const x = Math.random() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (Math.random() - 0.5) * 3, H); g.stroke(); }
+  for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(255,255,255,${0.1 + Math.random() * 0.25})`; g.lineWidth = 0.5 + Math.random() * 0.6; const x = Math.random() * W, y = Math.random() * H, l = 6 + Math.random() * 28, a2 = Math.random() * 6.28; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a2) * l, y + Math.sin(a2) * l); g.stroke(); }
   return c;
 }
 

@@ -80,3 +80,7 @@ Chất lượng thấp/trung bình/cao (độ phân giải, bóng đổ); menu h
 - Đèn bàn: đèn chiếu (spot) chỉnh độ sáng + tông ấm/lạnh, 5 mức nhanh (Tối…Rất sáng), lưu `vigo.lamp`. Bóng mờ của cơ trên mặt bàn.
 - Cửa hàng: 13 gậy, 12 avatar, 9 hiệu ứng đánh (màu đường ngắm + vệt bi cái). Chọn tự do, lưu trên máy, gửi cho đối thủ qua `setProfile`. Chưa có kinh tế xu/mở khoá.
 - Emote: 10 biểu cảm, bong bóng cạnh avatar, giới hạn 1,2 giây/lần.
+
+## v1.8 — Độ mòn/xước và 4 không gian mới
+- Nỉ: lớp dấu vết sử dụng (phấn xanh, vệt mòn bóng, xước, vết rách nhỏ, bụi/xơ) + bump sợi nỉ. Gỗ băng: xước, va đập, bump vân gỗ. Bi: bản đồ độ nhám có xước li ti và dấu phấn trên bi cái. Cơ: vân gỗ + xước.
+- Không gian mới: Nhà kính · sân golf, Sân vận động, Sân vườn, Sân thượng phố đêm (tổng 9 không gian).
