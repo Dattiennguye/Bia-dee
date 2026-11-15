@@ -348,6 +348,11 @@ export class BilliardScene {
   private viewSeatSide = 1;
   /** dịch điểm nhìn theo trục màn hình (chừa chỗ cho HUD) — đơn vị: nửa chiều cao màn hình */
   private lookShift = 0;
+  private overview = false;
+  private blend = 0; // 0 = toàn cảnh, 1 = sau cơ
+  private orbSlots = { follow: { az: 0, el: 0, z: 1 }, over: { az: 0, el: 0, z: 1 } };
+  private readonly _gp2 = new THREE.Vector3();
+  private readonly _gl2 = new THREE.Vector3();
   private viewAz = 0;
   private viewEl = 0;
   private viewZoom = 1;
@@ -1086,6 +1091,16 @@ export class BilliardScene {
     this.viewZoom = Math.min(1.5, Math.max(0.5, this.viewZoom * f));
   }
 
+  /** Không phải lượt mình: nhìn toàn cảnh bàn (vẫn xoay được); đến lượt: chuyển mượt về sau cơ */
+  setOverview(on: boolean): void {
+    if (on === this.overview) return;
+    const from = this.overview ? this.orbSlots.over : this.orbSlots.follow;
+    from.az = this.viewAz; from.el = this.viewEl; from.z = this.viewZoom;
+    const to = on ? this.orbSlots.over : this.orbSlots.follow;
+    this.viewAz = to.az; this.viewEl = to.el; this.viewZoom = to.z;
+    this.overview = on;
+  }
+  get isOverview(): boolean { return this.overview; }
   resetView(): void { this.viewAz = 0; this.viewEl = 0; this.viewZoom = 1; }
 
   rotateFree(dx: number, dy: number): void {
@@ -1469,12 +1484,11 @@ export class BilliardScene {
     }
   }
 
-  private setOrbitGoal(pos: THREE.Vector3, look: THREE.Vector3, th: number, aspect: number): void {
+  private setOrbitGoal(pos: THREE.Vector3, look: THREE.Vector3, th: number, aspect: number, az = this.viewAz, ev = this.viewEl, zm = this.viewZoom): void {
     const need = Math.max((W + 1.0) / 2 / th, (L + 0.5) / 2 / (th * aspect));
-    const d = Math.max(1.9, need * 0.9 * this.viewZoom) * 0.95;
-    const el = Math.min(1.5, Math.max(0.2, 0.86 + this.viewEl));
+    const d = Math.max(1.9, need * 0.9 * zm) * 0.95;
+    const el = Math.min(1.5, Math.max(0.2, 0.86 + ev));
     const side = this.viewSeatSide;
-    const az = this.viewAz;
     look.set(0, -0.05, -0.05 * side);
     pos.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, side * Math.cos(az) * Math.cos(el) * d);
   }
@@ -1525,16 +1539,25 @@ export class BilliardScene {
         this.setOrbitGoal(goalPos, goalLook, th, aspect);
       } else if (mode === 'shoot') {
         this.freezeCamera = false;
-        {
-          const ang = this.aim.visible ? this.aim.angle : this.otherAim ? this.otherAim.angle : this.strokeActive ? this.strokeAngle : this.camAng;
-          this.camAng = ang;
-          const yaw = ang + this.viewAz;
-          const e = Math.min(1.35, Math.max(0.06, 0.2 + this.viewEl));
-          const dist = 0.8 * this.viewZoom;
-          goalPos.set(cx - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, cz - Math.sin(yaw) * Math.cos(e) * dist);
-          const f = Math.max(0, Math.cos(this.viewAz));
-          goalLook.set(cx + Math.cos(ang) * 0.9 * f, 0.0, cz + Math.sin(ang) * 0.9 * f);
-        }
+        // 1) tư thế toàn cảnh
+        { const o = this.overview ? { az: this.viewAz, el: this.viewEl, z: this.viewZoom } : this.orbSlots.over; this.setOrbitGoal(this._gp2, this._gl2, th, aspect, o.az, o.el, o.z); }
+        // 2) tư thế sau cơ
+        const ang = this.aim.visible ? this.aim.angle : this.otherAim ? this.otherAim.angle : this.strokeActive ? this.strokeAngle : this.camAng;
+        this.camAng = ang;
+        const yaw = ang + (this.overview ? 0 : this.viewAz);
+        const e = Math.min(1.35, Math.max(0.06, 0.2 + (this.overview ? 0 : this.viewEl)));
+        const dist = 0.8 * (this.overview ? 1 : this.viewZoom);
+        goalPos.set(cx - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, cz - Math.sin(yaw) * Math.cos(e) * dist);
+        const f = this.overview ? 1 : Math.max(0, Math.cos(this.viewAz));
+        goalLook.set(cx + Math.cos(ang) * 0.9 * f, 0.0, cz + Math.sin(ang) * 0.9 * f);
+        // 3) pha trộn mượt (smootherstep, ~1,4 giây)
+        const target = this.overview ? 0 : 1;
+        const step = dt / 1.4;
+        this.blend += Math.max(-step, Math.min(step, target - this.blend));
+        const t = this.blend;
+        const sm = t * t * t * (t * (t * 6 - 15) + 10);
+        goalPos.lerpVectors(this._gp2, goalPos, sm);
+        goalLook.lerpVectors(this._gl2, goalLook, sm);
       } else if (mode === 'free') {
         const sp = Math.sin(this.freePol);
         goalPos.set(Math.cos(this.freeAz) * this.freeDist * sp, Math.cos(this.freePol) * this.freeDist, Math.sin(this.freeAz) * this.freeDist * sp);

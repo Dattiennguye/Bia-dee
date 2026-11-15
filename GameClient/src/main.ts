@@ -287,7 +287,7 @@ function lobby(): void {
 // ---------- GAME ----------
 const CAM_LIST: CamMode[] = ['shoot', 'top', 'free'];
 const CAM_ICON: Record<CamMode, string> = { top: ic('camTop'), persp: ic('cam3d'), shoot: ic('camCue'), free: ic('camFree'), cinema: ic('camFilm') };
-const CAM_NAME: Record<CamMode, string> = { top: 'Trên xuống', persp: 'Tự do', shoot: 'Sau cơ', free: 'Tự do', cinema: 'Sau cơ' };
+const CAM_NAME: Record<CamMode, string> = { top: 'Trên xuống', persp: 'Tự do', shoot: 'Tự động', free: 'Tự do', cinema: 'Tự động' };
 let gaugeDrag: null | { id: number; y0: number; moved: boolean; tick: number } = null;
 let miniHandle = 0;
 let msgFade = 0;
@@ -548,8 +548,15 @@ function isMyTurn(): boolean {
   return !!g && room?.status === 'playing' && g.phase !== 'over' && g.currentSeat === mySeat() && !scene.playing && !shotPending;
 }
 
+function syncOverview(): void {
+  const g = room?.game;
+  const mine = !!g && room?.status === 'playing' && g.phase !== 'over' && g.currentSeat === mySeat();
+  scene.setOverview(!mine);
+}
+
 function updateControls(): void {
   if (screen !== 'game') return;
+  syncOverview();
   const my = isMyTurn();
   const g = room?.game;
   const bih = !!g?.ballInHand && g.ballInHand.seat === mySeat();
@@ -720,7 +727,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
-    if (pinchDist > 0 && scene.camMode !== 'shoot') {
+    if (pinchDist > 0 && (scene.camMode !== 'shoot' || scene.isOverview)) {
       scene.zoomView(pinchDist / d);
       // trọng tâm hai ngón dịch chuyển => xoay/nghiêng góc nhìn
       scene.orbitView((e.clientX - prev.x) / 2, (e.clientY - prev.y) / 2);
