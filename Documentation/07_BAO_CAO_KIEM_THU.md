@@ -66,3 +66,11 @@ Script: `Tests/ui/` (hướng dẫn chạy trong `Tests/ui/README.md`).
 ## v1.6
 - `npm test` 80/80, `npm run typecheck` sạch, vite build OK. Playwright (swiftshader): cửa hàng, emote (cả phản ứng của máy), đèn tối/chuẩn/sáng, nhìn từ trên, cú đánh với vệt hiệu ứng — không lỗi JS.
 - Chưa kiểm chứng: FPS thật trên điện thoại, hiển thị vệt hiệu ứng trên GPU thật, build Gradle.
+
+## v1.7 — Vật lý chân thực hơn
+- Bước con thích ứng theo tốc độ (≤1,5 mm/bước): điểm chạm bi-bi chính xác kể cả khi phá bi 8,5 m/s (trước đây lệch tới ~1,8 cm).
+- Băng mô hình xung lượng 3D: điểm chạm cao hơn tâm 0,27R (băng 63,5% đường kính), ma sát băng + ma sát nỉ => xoáy tiến/lùi/ngang đổi góc và tốc độ bật.
+- Ma sát bi-bi phụ thuộc tốc độ trượt (throw ~3° khi đánh nhẹ, ~0° khi đánh mạnh). Đánh lệch tâm mất lực và squirt nhẹ.
+- Client: nội suy Hermite bậc 3 quỹ đạo (giữ đoạn thẳng tại điểm gãy).
+- Test: 82/82 (thêm: góc cắt/throw theo tốc độ, tốc độ bật băng và khác biệt xoáy tiến/lùi). Test draw/follow đo ngay sau va chạm thay vì vị trí dừng (kết quả cuối hỗn loạn do bi dội lại).
+- Chưa kiểm chứng: cảm giác thật trên điện thoại; các hệ số (e băng, μ băng 0,2, muRoll 0,012) là giá trị tham khảo từ tài liệu, có thể cần tinh chỉnh theo phản hồi.

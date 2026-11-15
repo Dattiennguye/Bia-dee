@@ -89,7 +89,6 @@ export function makeBalls(states: BallState[]): Ball[] {
 /** Áp lực đánh lên bi cái: tính vận tốc và xoáy ban đầu từ điểm tiếp xúc của cơ */
 export function applyCueStrike(cue: Ball, shot: ShotInput): number {
   const power = clamp(shot.power, 0, 1);
-  const v0 = powerToSpeed(power);
   let a = clamp(shot.spinX, -1, 1);
   let b = clamp(shot.spinY, -1, 1);
   const mag = Math.hypot(a, b);
@@ -98,8 +97,12 @@ export function applyCueStrike(cue: Ball, shot: ShotInput): number {
     a = (a / mag) * maxOff;
     b = (b / mag) * maxOff;
   }
-  const dx = Math.cos(shot.angle);
-  const dy = Math.sin(shot.angle);
+  // đánh lệch tâm: truyền lực kém hơn (mất một phần năng lượng vào quay) và cơ bị "squirt" nhẹ ngược phía xoáy ngang
+  const off2 = a * a + b * b;
+  const v0 = powerToSpeed(power) / (1 + 0.6 * off2);
+  const ang = shot.angle - a * 0.02;
+  const dx = Math.cos(ang);
+  const dy = Math.sin(ang);
   cue.vx = dx * v0;
   cue.vy = dy * v0;
   // xoáy dọc (b>0: tiến; b<0: lùi). b=0.4 => lăn thuần ngay lập tức.
@@ -209,10 +212,16 @@ export function simulateShot(start: BallState[], shot: ShotInput): SimResult {
     step++;
     t = step * PHYS.dt;
     let anyMoving = false;
+    // chia nhỏ bước theo tốc độ lớn nhất (<= ~1,5mm mỗi bước con) để va chạm không bị xuyên/lệch điểm chạm
+    let vmax = 0;
+    for (const b of balls) if (!b.pocketed) vmax = Math.max(vmax, Math.hypot(b.vx, b.vy));
+    const nSub = Math.min(8, Math.max(1, Math.ceil((vmax * PHYS.dt) / 0.0015)));
+    const h = PHYS.dt / nSub;
+    for (let sub = 0; sub < nSub; sub++) {
     for (const b of balls) {
       if (b.pocketed) continue;
       if (b.vx !== 0 || b.vy !== 0 || b.wx !== 0 || b.wy !== 0 || b.wz !== 0) {
-        moveBall(b, PHYS.dt);
+        moveBall(b, h);
         anyMoving = true;
       }
     }
@@ -249,7 +258,9 @@ export function simulateShot(start: BallState[], shot: ShotInput): SimResult {
           const tx = -ny;
           const ty = nx;
           const slip = rvx * tx + rvy * ty + R * (a.wz + b.wz);
-          const jt = Math.sign(slip) * Math.min(PHYS.muBall * J, Math.abs(slip) / 7);
+          // hệ số ma sát bi-bi giảm theo tốc độ trượt (Alciatore): ~0.05 khi trượt chậm, ~0.01 khi trượt nhanh
+          const muB = 0.00995 + 0.108 * Math.exp(-1.088 * Math.abs(slip));
+          const jt = Math.sign(slip) * Math.min(muB * J, Math.abs(slip) / 7);
           a.vx -= jt * tx;
           a.vy -= jt * ty;
           b.vx += jt * tx;
@@ -280,6 +291,7 @@ export function simulateShot(start: BallState[], shot: ShotInput): SimResult {
         if (b.id !== 0) objectCushion.add(b.id);
         if (firstContact !== null) railAfterContact = true;
       }
+    }
     }
     // Dừng hẳn những bi đã gần đứng yên
     let allRest = true;
@@ -411,22 +423,61 @@ function cushion(b: Ball): number {
   return hit;
 }
 
-/** (nx,ny) là pháp tuyến hướng vào trong bàn */
+/**
+ * Va chạm băng theo mô hình xung lượng 3D (Han 2005 / Mathavan 2010, rút gọn):
+ *  - băng cao 63,5% đường kính bi => điểm chạm nằm CAO hơn tâm bi 0,27R, pháp tuyến nghiêng xuống nỉ
+ *  - xung pháp tuyến + ma sát Coulomb tại băng (kết hợp xoáy ngang và xoáy dọc)
+ *  - phản lực nỉ + ma sát nỉ => xoáy tiến/lùi làm bi bật khác góc/tốc độ như thật
+ * (nx,ny) là pháp tuyến hướng vào trong bàn.
+ */
+const SIN_PHI = 0.27;
+const COS_PHI = Math.sqrt(1 - SIN_PHI * SIN_PHI);
+const MU_WALL = 0.2;
 function bounce(b: Ball, nx: number, ny: number): number {
-  const vn = b.vx * nx + b.vy * ny;
-  if (vn >= 0) return 0;
-  const tx = -ny;
-  const ty = nx;
-  const vt = b.vx * tx + b.vy * ty;
-  const e = Math.max(0.6, 0.85 - 0.03 * Math.abs(vn));
-  const newVn = -e * vn;
-  // ma sát tiếp tuyến ghép xoáy ngang
-  const slip = vt - R * b.wz;
-  const maxImpulse = PHYS.muCushion * (1 + e) * Math.abs(vn);
-  const dvt = -Math.sign(slip) * Math.min(maxImpulse, Math.abs(slip) / 3.5);
-  const newVt = vt + dvt;
-  b.wz += -I_FACTOR * dvt;
-  b.vx = newVn * nx + newVt * tx;
-  b.vy = newVn * ny + newVt * ty;
-  return -vn;
+  const vh = -(b.vx * nx + b.vy * ny);
+  if (vh <= 0) return 0;
+  const rx = -nx * COS_PHI * R, ry = -ny * COS_PHI * R, rz = SIN_PHI * R;
+  const Nx = nx * COS_PHI, Ny = ny * COS_PHI, Nz = -SIN_PHI;
+  let ux = b.vx + (b.wy * rz - b.wz * ry);
+  let uy = b.vy + (b.wz * rx - b.wx * rz);
+  let uz = b.wx * ry - b.wy * rx;
+  const un = ux * Nx + uy * Ny + uz * Nz;
+  if (un >= 0) return 0;
+  // hệ số nảy hiệu dụng giảm theo tốc độ; quy đổi sang e pháp tuyến do nghiêng điểm chạm
+  const er = clamp(0.82 - 0.04 * vh, 0.55, 0.82);
+  const e = Math.min(0.98, (1 + er) / (COS_PHI * COS_PHI) - 1);
+  const P = -(1 + e) * un;
+  b.vx += P * Nx;
+  b.vy += P * Ny;
+  let vz = P * Nz;
+  // ma sát tại băng (trong mặt phẳng vuông góc pháp tuyến)
+  ux = b.vx + (b.wy * rz - b.wz * ry);
+  uy = b.vy + (b.wz * rx - b.wx * rz);
+  uz = vz + (b.wx * ry - b.wy * rx);
+  const un2 = ux * Nx + uy * Ny + uz * Nz;
+  const tx = ux - un2 * Nx, ty = uy - un2 * Ny, tz = uz - un2 * Nz;
+  const ts = Math.hypot(tx, ty, tz);
+  if (ts > 1e-9) {
+    const F = Math.min(MU_WALL * P, ts / 3.5);
+    const jx = (-tx / ts) * F, jy = (-ty / ts) * F, jz = (-tz / ts) * F;
+    b.vx += jx; b.vy += jy; vz += jz;
+    const k = 5 / (2 * R * R);
+    b.wx += k * (ry * jz - rz * jy);
+    b.wy += k * (rz * jx - rx * jz);
+    b.wz += k * (rx * jy - ry * jx);
+  }
+  // nỉ đỡ thành phần đi xuống => ma sát nỉ
+  if (vz < 0) {
+    const Pc = -vz;
+    const sx = b.vx - R * b.wy, sy = b.vy + R * b.wx;
+    const ss = Math.hypot(sx, sy);
+    if (ss > 1e-9) {
+      const Fc = Math.min(PHYS.muSlide * Pc, ss / 3.5);
+      const fx = sx / ss, fy = sy / ss;
+      b.vx -= fx * Fc; b.vy -= fy * Fc;
+      b.wx -= I_FACTOR * fy * Fc;
+      b.wy += I_FACTOR * fx * Fc;
+    }
+  }
+  return vh;
 }

@@ -71,11 +71,17 @@ describe('vật lý', () => {
   it('đánh thẳng vào bi: xoáy lùi (draw) làm bi cái lùi, xoáy tiến (follow) làm bi cái chạy theo', () => {
     const base = table([0.9, 0.635], [[1, 1.4, 0.635]]);
     const contactX = 1.4 - 2 * R;
+    // vị trí bi cái 0,35 giây sau va chạm đầu tiên (trước khi bi mục tiêu kịp dội lại từ băng xa)
+    const cueAfter = (r: ReturnType<typeof simulateShot>): number => {
+      const ev = r.events.find((e) => e.k === 'ball')!;
+      const f = r.frames[Math.min(r.frames.length - 1, Math.round((ev.t + 0.35) * 30))];
+      return f[0] / 1000;
+    };
     const draw = simulateShot(base, { angle: 0, power: 0.5, spinX: 0, spinY: -0.6 });
     expect(draw.firstContact).toBe(1);
-    expect(draw.finalBalls[0].x).toBeLessThan(contactX - 0.05);
+    expect(cueAfter(draw)).toBeLessThan(contactX - 0.05);
     const follow = simulateShot(base, { angle: 0, power: 0.5, spinX: 0, spinY: 0.45 });
-    expect(follow.finalBalls[0].x).toBeGreaterThan(contactX + 0.05);
+    expect(cueAfter(follow)).toBeGreaterThan(contactX + 0.05);
     const stun = simulateShot(base, { angle: 0, power: 0.3, spinX: 0, spinY: 0 });
     // bi mục tiêu luôn đi tiếp về phía trước
     expect(stun.finalBalls[1].x).toBeGreaterThan(1.4 + 0.1);
@@ -142,5 +148,36 @@ describe('vật lý v1.1', () => {
     side[0] = { id: 0, x: 1.0, y: 0.03, pocketed: false };
     const r = simulateShot(side, { angle: Math.PI, power: 0.6, spinX: 0, spinY: 0 });
     for (const f of r.frames) { if (f[0] >= 0) { expect(f[0]).toBeGreaterThanOrEqual(0); expect(f[1]).toBeGreaterThanOrEqual(0); } }
+  });
+
+  it('góc cắt bi mục tiêu bám đường nối tâm, throw giảm khi đánh mạnh (bước con chính xác ở tốc độ cao)', () => {
+    const th = (30 * Math.PI) / 180;
+    const off = 2 * R * Math.sin(th);
+    const angOf = (p: number): number => {
+      const st = table([0.7, 0.635 - off], [[1, 0.7 + 0.6 + 2 * R * Math.cos(th), 0.635]]);
+      const r = simulateShot(st, { angle: 0, power: p, spinX: 0, spinY: 0 });
+      const ev = r.events.find((e) => e.k === 'ball')!;
+      const i0 = Math.round((ev.t + 0.04) * 30);
+      const f0 = r.frames[i0], f1 = r.frames[i0 + 1];
+      return (Math.atan2(f1[3] - f0[3], f1[2] - f0[2]) * 180) / Math.PI;
+    };
+    const slow = angOf(0.25), fast = angOf(1);
+    expect(slow).toBeGreaterThan(24); expect(slow).toBeLessThan(30);
+    expect(fast).toBeGreaterThan(28); expect(fast).toBeLessThanOrEqual(30.5);
+    expect(fast).toBeGreaterThan(slow); // throw nhỏ dần theo tốc độ
+  });
+
+  it('băng: tốc độ bật lại 55–90% và phụ thuộc xoáy tiến/lùi', () => {
+    const run = (sy: number): number => {
+      const r = simulateShot(table([1.2, 0.635], []), { angle: Math.PI, power: 0.5, spinX: 0, spinY: sy });
+      const ev = r.events.find((e) => e.k === 'cushion')!;
+      const i = Math.round(ev.t * 30);
+      const a = r.frames[i + 1], b = r.frames[i + 4];
+      return (b[0] - a[0]) / 1000 / (3 / 30); // vận tốc x sau băng (m/s)
+    };
+    const none = run(0), top = run(0.5), back = run(-0.5);
+    const vIn = 2.6;
+    expect(none).toBeGreaterThan(0.55 * vIn * 0.7); expect(none).toBeLessThan(0.95 * vIn);
+    expect(Math.abs(top - back)).toBeGreaterThan(0.03);
   });
 });

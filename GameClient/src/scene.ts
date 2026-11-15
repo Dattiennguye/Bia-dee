@@ -1351,8 +1351,26 @@ export class BilliardScene {
       let x = x0 / 1000;
       let y = y0 / 1000;
       if (x1 >= 0) {
-        x = (x0 + (x1 - x0) * a) / 1000;
-        y = (y0 + (y1 - y0) * a) / 1000;
+        // nội suy Hermite bậc 3 (quỹ đạo cong mượt như bi thật); tại điểm gãy (va chạm/băng) dùng đoạn thẳng để không bị vọt
+        const im = Math.max(0, i0 - 1), ip = Math.min(n - 1, i1 + 1);
+        const xm = tr[2 * im], ym = tr[2 * im + 1], xp = tr[2 * ip], yp = tr[2 * ip + 1];
+        const sx = x1 - x0, sy = y1 - y0;
+        const kink = (ux: number, uy: number, vx: number, vy: number): boolean => {
+          const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+          if (lu < 1 && lv < 1) return false;
+          if (lu < 1e-6 || lv < 1e-6) return true;
+          const c = (ux * vx + uy * vy) / (lu * lv);
+          const r = lu > lv ? lu / lv : lv / lu;
+          return c < 0.93 || r > 1.6;
+        };
+        const k0b = xm < 0 || kink(x0 - xm, y0 - ym, sx, sy);
+        const k1b = xp < 0 || kink(sx, sy, xp - x1, yp - y1);
+        const m0x = k0b ? sx : (x1 - xm) / 2, m0y = k0b ? sy : (y1 - ym) / 2;
+        const m1x = k1b ? sx : (xp - x0) / 2, m1y = k1b ? sy : (yp - y0) / 2;
+        const a2 = a * a, a3 = a2 * a;
+        const h00 = 2 * a3 - 3 * a2 + 1, h10 = a3 - 2 * a2 + a, h01 = -2 * a3 + 3 * a2, h11 = a3 - a2;
+        x = (h00 * x0 + h10 * m0x + h01 * x1 + h11 * m1x) / 1000;
+        y = (h00 * y0 + h10 * m0y + h01 * y1 + h11 * m1y) / 1000;
       }
       const dx = x - b.x;
       const dy = y - b.y;
