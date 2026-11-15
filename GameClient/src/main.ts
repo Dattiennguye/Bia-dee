@@ -103,7 +103,7 @@ function vibrate(ms: number): void {
 // ============ điều hướng ============
 function go(s: Screen): void {
   screen = s;
-  scene.setPeek(false);
+  if (s !== 'game') scene.setPeek(false);
   scene.menuMode = s !== 'game' && s !== 'result';
   clearInterval(timerHandle);
   clearInterval(miniHandle);
@@ -321,13 +321,6 @@ function game(): void {
       <div class="gtrack" id="gtrack"><div class="gfill" id="gfill"></div><div class="gticks"></div><div class="gcue" id="gcue"></div><div class="ghint">KÉO XUỐNG · THẢ ĐỂ ĐÁNH</div></div>
     </div>
   </div>`;
-  const mini = el<HTMLCanvasElement>('#mini');
-  if (mini) {
-    const on = (v: boolean) => (e: Event) => { e.preventDefault(); scene.setPeek(v); };
-    mini.addEventListener('pointerdown', (e) => { try { mini.setPointerCapture(e.pointerId); } catch { /* bỏ qua */ } scene.setPeek(true); });
-    for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) mini.addEventListener(t, () => scene.setPeek(false));
-    mini.addEventListener('contextmenu', on(false));
-  }
   bindGauge();
   bindSpin();
   bindDial();
@@ -1103,6 +1096,16 @@ function pauseMenu(): void {
   ui.appendChild(d);
 }
 
+// giữ minimap = xem toàn bàn từ trên; dùng sự kiện mức tài liệu để không bị mất khi HUD dựng lại
+let peekId = -1;
+document.addEventListener('pointerdown', (e) => {
+  if (screen !== 'game' || !(e.target as HTMLElement | null)?.closest?.('#mini')) return;
+  peekId = e.pointerId; scene.setPeek(true);
+}, true);
+const peekEnd = (e: PointerEvent) => { if (e.pointerId === peekId) { peekId = -1; scene.setPeek(false); } };
+window.addEventListener('pointerup', peekEnd, true);
+window.addEventListener('pointercancel', peekEnd, true);
+window.addEventListener('blur', () => { peekId = -1; scene.setPeek(false); });
 ui.addEventListener('input', (e) => {
   const r = e.target as HTMLInputElement;
   if (r.dataset?.lamp) { (lamp as Record<string, number>)[r.dataset.lamp] = Number(r.value); scene.setLamp(lamp.level, lamp.tone); LS.set('vigo.lamp', JSON.stringify(lamp)); }

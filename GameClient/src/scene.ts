@@ -1088,7 +1088,8 @@ export class BilliardScene {
   orbitView(dx: number, dy: number): void {
     if (this.camMode === 'top') this.camMode = 'persp';
     if (this.camMode === 'free') { this.rotateFree(dx, dy); return; }
-    this.viewAz = Math.max(-1.3, Math.min(1.3, this.viewAz - dx * 0.006));
+    // sau cơ: camera luôn thẳng hướng ngắm (chỉ nghiêng lên/xuống), chỉ toàn cảnh mới xoay ngang
+    if (this.camMode !== 'shoot' || this.overview) this.viewAz = Math.max(-1.3, Math.min(1.3, this.viewAz - dx * 0.006));
     this.viewEl = Math.max(-0.75, Math.min(0.55, this.viewEl + dy * 0.005));
   }
 
@@ -1103,7 +1104,7 @@ export class BilliardScene {
     const from = this.overview ? this.orbSlots.over : this.orbSlots.follow;
     from.az = this.viewAz; from.el = this.viewEl; from.z = this.viewZoom;
     const to = on ? this.orbSlots.over : this.orbSlots.follow;
-    this.viewAz = to.az; this.viewEl = to.el; this.viewZoom = to.z;
+    this.viewAz = on ? to.az : 0; this.viewEl = to.el; this.viewZoom = on ? to.z : 1;
     this.overview = on;
   }
   get isOverview(): boolean { return this.overview; }
