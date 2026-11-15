@@ -348,6 +348,7 @@ export class BilliardScene {
   private viewSeatSide = 1;
   /** dịch điểm nhìn theo trục màn hình (chừa chỗ cho HUD) — đơn vị: nửa chiều cao màn hình */
   private lookShift = 0;
+  private focus = { x: 0, z: 0, yaw: 0, init: false };
   private overview = false;
   private blend = 0; // 0 = toàn cảnh, 1 = sau cơ
   private orbSlots = { follow: { az: 0, el: 0, z: 1 }, over: { az: 0, el: 0, z: 1 } };
@@ -1544,12 +1545,21 @@ export class BilliardScene {
         // 2) tư thế sau cơ
         const ang = this.aim.visible ? this.aim.angle : this.otherAim ? this.otherAim.angle : this.strokeActive ? this.strokeAngle : this.camAng;
         this.camAng = ang;
-        const yaw = ang + (this.overview ? 0 : this.viewAz);
+        // tiêu điểm = bi cái (mượt khi bi lăn), hướng = hướng ngắm (bám sát để bi luôn ở giữa màn hình)
+        const F = this.focus;
+        if (!F.init) { F.x = cx; F.z = cz; F.yaw = ang; F.init = true; }
+        const fk = 1 - Math.exp(-dt * (shooting ? 5 : 22));
+        F.x += (cx - F.x) * fk; F.z += (cz - F.z) * fk;
+        let dy = ang - F.yaw;
+        while (dy > Math.PI) dy -= 2 * Math.PI;
+        while (dy < -Math.PI) dy += 2 * Math.PI;
+        F.yaw += dy * (1 - Math.exp(-dt * 24));
+        const yaw = F.yaw + (this.overview ? 0 : this.viewAz);
         const e = Math.min(1.35, Math.max(0.06, 0.2 + (this.overview ? 0 : this.viewEl)));
         const dist = 0.8 * (this.overview ? 1 : this.viewZoom);
-        goalPos.set(cx - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, cz - Math.sin(yaw) * Math.cos(e) * dist);
+        goalPos.set(F.x - Math.cos(yaw) * Math.cos(e) * dist, R + Math.sin(e) * dist + 0.02, F.z - Math.sin(yaw) * Math.cos(e) * dist);
         const f = this.overview ? 1 : Math.max(0, Math.cos(this.viewAz));
-        goalLook.set(cx + Math.cos(ang) * 0.9 * f, 0.0, cz + Math.sin(ang) * 0.9 * f);
+        goalLook.set(F.x + Math.cos(F.yaw) * 0.9 * f, 0.0, F.z + Math.sin(F.yaw) * 0.9 * f);
         // 3) pha trộn mượt (smootherstep, ~1,4 giây)
         const target = this.overview ? 0 : 1;
         const step = dt / 1.4;
@@ -1564,7 +1574,7 @@ export class BilliardScene {
         goalLook.set(0, 0, 0);
       }
     }
-    const k = 1 - Math.exp(-dt * (mode === 'free' && !inIntro ? 14 : 4.5));
+    const k = 1 - Math.exp(-dt * (mode === 'free' && !inIntro ? 14 : mode === 'shoot' && !inIntro ? (this.blend > 0.999 ? 60 : 9) : 4.5));
     this.camPos.lerp(goalPos, k);
     this.camLook.lerp(goalLook, k);
     {
