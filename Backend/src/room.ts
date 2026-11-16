@@ -386,6 +386,18 @@ export class Room {
     this.broadcast({ t: 'game.state', room: this.snapshot() });
   }
 
+  /** Người chơi duy nhất trong phòng bỏ qua thời gian chờ nghĩ của máy */
+  skipBot(playerId: string): void {
+    const p = this.playerById(playerId);
+    if (!p || p.isBot || !this.game || this.status !== 'playing' || this.game.phase !== 'playing') return;
+    if (this.humanCount() !== 1 || !this.botTimer) return;
+    const cur = this.activePlayers().find((x) => x.seat === this.game!.currentSeat);
+    if (!cur || !cur.isBot) return;
+    clearTimeout(this.botTimer);
+    this.botTimer = null;
+    this.botMove();
+  }
+
   private botMove(): void {
     if (!this.game || this.game.phase !== 'playing' || this.closed) return;
     const cur = this.activePlayers().find((p) => p.seat === this.game!.currentSeat);

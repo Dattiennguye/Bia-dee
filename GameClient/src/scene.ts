@@ -266,7 +266,7 @@ function windowTexture(): THREE.CanvasTexture {
 }
 
 /** Lớp "dấu vết sử dụng" trên mặt nỉ: phấn, vệt mòn, xước, lông nỉ — vẽ một lần cho cả mặt bàn */
-function feltWearTexture(aniso: number): THREE.CanvasTexture {
+function feltWearTexture(aniso: number, lv = 1): THREE.CanvasTexture {
   const W2 = 2048, H2 = 1024;
   const c = document.createElement('canvas');
   c.width = W2; c.height = H2;
@@ -274,7 +274,7 @@ function feltWearTexture(aniso: number): THREE.CanvasTexture {
   const rnd = (a: number, b: number) => a + Math.random() * (b - a);
   // vệt mòn bóng loáng dọc đường bi hay chạy
   g.lineCap = 'round';
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < Math.round(70 * lv); i++) {
     g.strokeStyle = `rgba(210,235,255,${rnd(0.015, 0.045)})`;
     g.lineWidth = rnd(10, 26);
     const x = rnd(200, W2 - 200), y = rnd(150, H2 - 150), a = rnd(-0.35, 0.35) + (Math.random() < 0.3 ? Math.PI / 2 : 0), l = rnd(120, 520);
@@ -286,45 +286,45 @@ function feltWearTexture(aniso: number): THREE.CanvasTexture {
     gr.addColorStop(0, `rgba(150,200,235,${a})`); gr.addColorStop(1, 'rgba(150,200,235,0)');
     g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
   };
-  for (let i = 0; i < 46; i++) chalk(rnd(60, W2 - 60), rnd(60, H2 - 60), rnd(18, 70), rnd(0.03, 0.09));
-  for (let i = 0; i < 30; i++) chalk(rnd(60, W2 - 60), Math.random() < 0.5 ? rnd(20, 90) : rnd(H2 - 90, H2 - 20), rnd(14, 50), rnd(0.05, 0.1));
-  chalk(W2 * 0.25, H2 / 2, 110, 0.12); chalk(W2 * 0.75, H2 / 2, 130, 0.14);
+  for (let i = 0; i < Math.round(46 * lv); i++) chalk(rnd(60, W2 - 60), rnd(60, H2 - 60), rnd(18, 70), rnd(0.03, 0.09));
+  for (let i = 0; i < Math.round(30 * lv); i++) chalk(rnd(60, W2 - 60), Math.random() < 0.5 ? rnd(20, 90) : rnd(H2 - 90, H2 - 20), rnd(14, 50), rnd(0.05, 0.1));
+  if (Math.random() < lv) chalk(rnd(W2 * 0.15, W2 * 0.4), rnd(H2 * 0.3, H2 * 0.7), 110, 0.12 * lv); if (Math.random() < lv) chalk(rnd(W2 * 0.6, W2 * 0.85), rnd(H2 * 0.3, H2 * 0.7), 130, 0.14 * lv);
   // điểm đặt bi (đầu/giữa/cuối)
   g.fillStyle = 'rgba(255,255,255,0.35)';
   for (const [fx, fy] of [[0.25, 0.5], [0.5, 0.5], [0.75, 0.5]]) { g.beginPath(); g.arc(W2 * fx, H2 * fy, 5, 0, Math.PI * 2); g.fill(); }
   // đường đầu bàn (mờ)
   g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 3; g.beginPath(); g.moveTo(W2 * 0.25, 40); g.lineTo(W2 * 0.25, H2 - 40); g.stroke();
   // vết xước & vết cắt nhỏ
-  for (let i = 0; i < 34; i++) {
+  for (let i = 0; i < Math.round(34 * lv * Math.random() * 1.6); i++) {
     const x = rnd(80, W2 - 80), y = rnd(80, H2 - 80), a = rnd(0, Math.PI * 2), l = rnd(14, 90);
     g.strokeStyle = `rgba(230,245,255,${rnd(0.1, 0.32)})`; g.lineWidth = rnd(0.8, 1.8);
     g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + rnd(-6, 6), y + Math.sin(a) * l * 0.5 + rnd(-6, 6), x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
   }
-  for (let i = 0; i < 9; i++) { // vết rách nhỏ có viền tối
+  for (let i = 0; i < Math.round(9 * lv * Math.random() * 1.4); i++) { // vết rách nhỏ có viền tối
     const x = rnd(120, W2 - 120), y = rnd(120, H2 - 120), a = rnd(0, 6.28), l = rnd(10, 26);
     g.strokeStyle = 'rgba(0,0,0,0.28)'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
     g.strokeStyle = 'rgba(235,245,255,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
   }
   // bụi phấn li ti + xơ vải
-  for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(220,240,255,${rnd(0.05, 0.22)})`; g.fillRect(rnd(0, W2), rnd(0, H2), rnd(1, 2.6), rnd(1, 2.6)); }
+  for (let i = 0; i < Math.round(2600 * lv); i++) { g.fillStyle = `rgba(220,240,255,${rnd(0.05, 0.22)})`; g.fillRect(rnd(0, W2), rnd(0, H2), rnd(1, 2.6), rnd(1, 2.6)); }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
   return t;
 }
 
 /** Bản đồ độ nhám bi: bóng nhưng có xước li ti, vết trầy và dấu phấn */
-function ballRoughTexture(id: number): THREE.CanvasTexture {
+function ballRoughTexture(id: number, lv = 1): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 256;
   const g = c.getContext('2d')!;
   g.fillStyle = '#2a2a2a'; g.fillRect(0, 0, 512, 256);
   const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < Math.round(160 * lv * (0.3 + Math.random())); i++) {
     g.strokeStyle = `rgba(255,255,255,${rnd(0.1, 0.5)})`; g.lineWidth = rnd(0.4, 1.2);
     const x = rnd(0, 512), y = rnd(0, 256), a = rnd(0, 6.28), l = rnd(4, 26);
     g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
   }
-  for (let i = 0; i < 6; i++) { g.fillStyle = `rgba(255,255,255,${rnd(0.08, 0.2)})`; g.beginPath(); g.ellipse(rnd(0, 512), rnd(30, 226), rnd(6, 22), rnd(4, 14), rnd(0, 3), 0, Math.PI * 2); g.fill(); }
+  for (let i = 0; i < Math.round(6 * lv * Math.random() * 2); i++) { g.fillStyle = `rgba(255,255,255,${rnd(0.08, 0.2)})`; g.beginPath(); g.ellipse(rnd(0, 512), rnd(30, 226), rnd(6, 22), rnd(4, 14), rnd(0, 3), 0, Math.PI * 2); g.fill(); }
   if (id === 0) for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.arc(rnd(40, 470), rnd(60, 200), rnd(5, 12), 0, 6.28); g.fill(); }
   const t = new THREE.CanvasTexture(c);
   return t;
@@ -453,6 +453,7 @@ export class BilliardScene {
   private cueMats!: { shaft: THREE.MeshStandardMaterial; butt: THREE.MeshStandardMaterial; wrap: THREE.MeshStandardMaterial; ring: THREE.MeshStandardMaterial; tip: THREE.MeshStandardMaterial };
   private cueTex = new Map<number, THREE.CanvasTexture>();
   private cueShadow!: THREE.Mesh;
+  private wearMat!: THREE.MeshStandardMaterial;
   private fx: Fx = FXS[0];
   fxOn = true;
   spin = { x: 0, y: 0 };
@@ -514,7 +515,7 @@ export class BilliardScene {
   private strokeAngle = 0;
 
   // phát lại cú đánh
-  private play: null | { msg: ShotResultMsg; t0: number; evIdx: number; done: () => void; sunk: Set<number> } = null;
+  private play: null | { msg: ShotResultMsg; t0: number; evIdx: number; done: () => void; sunk: Set<number>; clock: number; lastRt: number } = null;
   onEventSound = true;
   /** cú phá bi: phát mẫu âm thanh phá bi */
   breakShot = false;
@@ -1088,7 +1089,9 @@ export class BilliardScene {
     ao.renderOrder = 1;
     t.add(ao);
     // dấu vết sử dụng trên nỉ (phấn, xước, vệt mòn)
-    const wear = new THREE.Mesh(flat(feltPoly, 0.0006), new THREE.MeshStandardMaterial({ map: feltWearTexture(A), transparent: true, depthWrite: false, roughness: 0.7, metalness: 0, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+    const wearMat = new THREE.MeshStandardMaterial({ map: feltWearTexture(A, 0.9), transparent: true, depthWrite: false, roughness: 0.7, metalness: 0, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    this.wearMat = wearMat;
+    const wear = new THREE.Mesh(flat(feltPoly, 0.0006), wearMat);
     {
       const uv = wear.geometry.getAttribute('uv') as THREE.BufferAttribute;
       for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + innerHX) / (2 * innerHX), (uv.getY(i) + innerHZ) / (2 * innerHZ));
@@ -1247,7 +1250,7 @@ export class BilliardScene {
       seg(0.0156, 0.0156, 0.17, 1.268, mButt),
       seg(0.0158, 0.0158, 0.012, 1.438, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })),
     ];
-    for (const p of parts) { p.castShadow = true; this.cueGroup.add(p); }
+    for (const p of parts) { p.castShadow = false; this.cueGroup.add(p); } // bóng cơ dùng tấm bóng mờ riêng (shadow map ở cấu hình cao bị lốm đốm)
     this.cueGroup.visible = false;
     this.scene.add(this.cueGroup);
     // bóng mờ của cơ trên mặt bàn
@@ -1545,7 +1548,7 @@ export class BilliardScene {
     const T_HIT = 0.38;
     let delay = T_HIT * 1000;
     if (this.strokeActive && this.strokeLocal) delay = Math.max(0, T_HIT - this.strokeT) * 1000;
-    this.play = { msg, t0: performance.now() + delay, evIdx: 0, done, sunk: new Set() };
+    this.play = { msg, t0: performance.now() + delay, evIdx: 0, done, sunk: new Set(), clock: 0, lastRt: -1 };
     this.shotCamUntil = performance.now() + delay + (msg.frameCount / FRAME_HZ) * 1000 + 500;
     this.aim.visible = false;
     this.otherAim = null;
@@ -1571,6 +1574,31 @@ export class BilliardScene {
     this.freezeCamera = true;
     this.strokeT = 0.28; // cần đã được kéo sẵn: chỉ còn pha đẩy tới
     this.strokeLocal = true;
+  }
+
+  /** Mỗi ván một "độ mòn" khác nhau: nỉ sạch hoặc đầy phấn/xước, vị trí vết ngẫu nhiên; bi mới hoặc trầy */
+  rerollWear(): void {
+    const r = Math.random();
+    const lv = r < 0.22 ? 0.12 + Math.random() * 0.15 : r < 0.6 ? 0.4 + Math.random() * 0.35 : 0.8 + Math.random() * 0.6;
+    const old = this.wearMat.map;
+    this.wearMat.map = feltWearTexture(this.aniso, lv);
+    this.wearMat.needsUpdate = true;
+    old?.dispose();
+    for (const b of this.balls) {
+      const t = ballRoughTexture(b.id, lv);
+      b.matStd.roughnessMap?.dispose();
+      b.matStd.roughnessMap = t; b.matPhys.roughnessMap = t;
+      b.matStd.needsUpdate = true; b.matPhys.needsUpdate = true;
+    }
+  }
+
+  /** hệ số tua nhanh hoạt ảnh bi (1 = bình thường) */
+  playSpeed = 1;
+
+  /** Bỏ qua hoạt ảnh: nhảy thẳng tới trạng thái cuối của cú đánh */
+  skipPlay(): void {
+    this.strokeActive = false;
+    if (this.play) this.finishPlay();
   }
 
   private finishPlay(): void {
@@ -1661,8 +1689,12 @@ export class BilliardScene {
     this.prevPlayNow = now;
     const p = this.play;
     if (!p) return;
-    const t = (now - p.t0) / 1000;
-    if (t < 0) return;
+    const rt = (now - p.t0) / 1000;
+    if (rt < 0) return;
+    // đồng hồ hoạt ảnh ảo: hỗ trợ tua nhanh (playSpeed)
+    p.clock += (p.lastRt < 0 ? 0 : rt - p.lastRt) * this.playSpeed;
+    p.lastRt = rt;
+    const t = p.clock;
     const f = t * FRAME_HZ;
     const k0 = Math.floor(f);
     const a = f - k0;

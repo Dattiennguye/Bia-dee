@@ -49,6 +49,10 @@ export class LocalServer {
         if (e) this.session.conn!.send({ t: 'error', code: 'bad_shot', message: e });
         break;
       }
+      case 'skipBot': {
+        r?.skipBot(this.session.playerId);
+        break;
+      }
       case 'emote': {
         r?.emote(this.session.playerId, Number(msg.e));
         // máy phản ứng vui nhộn

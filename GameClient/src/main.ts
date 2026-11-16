@@ -185,6 +185,26 @@ function themes(): void {
 const CAM_DIST: Array<[string, number]> = [['Gần', 0.75], ['Vừa', 1], ['Xa', 1.35]];
 let camDist = Number(LS.get('vigo.camdist')) || 1;
 let fxOn = LS.get('vigo.fxon') !== '0';
+let ffOn = false;
+let lastShotSeat = -1;
+let lastSkipAt = 0;
+const isBotSeat = (seat: number): boolean => !!room?.players.find((p) => p.seat === seat)?.isBot;
+/** Nút Tua nhanh / Bỏ qua chỉ hiện khi máy đang nghĩ hoặc đang đánh */
+function updateBotCtl(): void {
+  const bc = el('#botctl');
+  if (!bc) return;
+  const g = room?.game;
+  const botShot = scene.playing && isBotSeat(lastShotSeat);
+  const botThink = !!g && !scene.playing && g.phase === 'playing' && isBotSeat(g.currentSeat);
+  const busy = screen === 'game' && (botShot || botThink);
+  if (!busy && ffOn && g?.phase === 'playing' && !isBotSeat(g.currentSeat)) ffOn = false;
+  bc.hidden = !busy;
+  el('#ffbtn')?.classList.toggle('on', ffOn);
+  scene.playSpeed = ffOn && botShot ? 4 : 1;
+  // tua nhanh: bỏ luôn thời gian chờ nghĩ của máy
+  if (ffOn && botThink && Date.now() - lastSkipAt > 700) { lastSkipAt = Date.now(); net.send({ t: 'skipBot' }); }
+}
+window.setInterval(updateBotCtl, 250);
 let guideOn = LS.get('vigo.guide') !== '0';
 let shopTab: 'c' | 'a' | 'f' = 'c';
 function applyCosmetics(p: { a: number; c: number; f: number }): void { scene.setCueSkin(p.c); scene.setFx(p.f); }
@@ -311,6 +331,10 @@ function game(): void {
       ${CAM_LIST.map((m, i) => `<button class="camitem ${scene.camMode === m ? 'on' : ''}" data-cam="${m}" title="${i + 1}"><span class="i">${CAM_ICON[m]}</span>${CAM_NAME[m]}</button>`).join('')}
     </div>
     <div class="msgbar" id="msgbar" hidden></div>
+    <div class="botctl" id="botctl" hidden>
+      <button class="bcbtn" data-act="ff" id="ffbtn"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 5l8 7-8 7zM12 5l8 7-8 7z" fill="currentColor"/></svg><span>Tua nhanh</span></button>
+      <button class="bcbtn" data-act="skipbot"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 5l9 7-9 7zM15 5h3v14h-3z" fill="currentColor"/></svg><span>Bỏ qua</span></button>
+    </div>
     <div class="emotebar" id="emotebar" hidden>${EMOTES.map((e, i) => `<button data-emote="${i}">${e}</button>`).join('')}</div>
     <div class="bl"><button class="rbtn menu" data-act="pause" aria-label="Menu">${ic('menu')}</button><canvas class="mini" id="mini" width="176" height="92"></canvas></div>
     <div class="hint" id="hint"></div>
@@ -991,6 +1015,8 @@ function act(a: string, node?: HTMLElement): void {
     case 'help': go('help'); break;
     case 'themes': go('themes'); break;
     case 'shop': go('shop'); break;
+    case 'ff': ffOn = !ffOn; audio.click(); updateBotCtl(); break;
+    case 'skipbot': audio.click(); scene.skipPlay(); lastSkipAt = Date.now(); net.send({ t: 'skipBot' }); break;
     case 'emotebar': { const b = el('#emotebar'); if (b) b.hidden = !b.hidden; break; }
     case 'themeovl': {
       ui.querySelector('.themeovl')?.remove();
@@ -1264,6 +1290,7 @@ net.onMessage((m) => {
       break;
     case 'game.start':
       room = m.room;
+      scene.rerollWear();
       lastTurnSeat = -1;
       shotPending = false;
       placing = false;
@@ -1278,6 +1305,7 @@ net.onMessage((m) => {
       refreshTurn();
       break;
     case 'game.shotResult':
+      lastShotSeat = m.seat;
       onShotResult(m);
       break;
     case 'game.state':

@@ -174,6 +174,7 @@ export type ClientMsg =
   | { t: 'auth'; sessionId?: string; name?: string; prof?: Profile }
   | { t: 'setProfile'; prof: Profile }
   | { t: 'emote'; e: number }
+  | { t: 'skipBot' }
   | { t: 'ping'; c: number }
   | { t: 'setName'; name: string }
   | { t: 'room.create'; mode: GameMode; teamMode: TeamMode; maxPlayers: 2 | 3 | 4; bestOf?: 1 | 3 | 5 }

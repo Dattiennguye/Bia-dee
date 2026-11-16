@@ -155,6 +155,10 @@ export class Hub {
         room?.emote(s.playerId, Number(msg.e));
         return;
       }
+      case 'skipBot': {
+        room?.skipBot(s.playerId);
+        return;
+      }
       case 'setName': {
         s.name = sanitizeName(msg.name, s.name);
         return;
