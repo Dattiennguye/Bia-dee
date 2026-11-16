@@ -196,11 +196,12 @@ function updateBotCtl(): void {
   const g = room?.game;
   const botShot = scene.playing && isBotSeat(lastShotSeat);
   const botThink = !!g && !scene.playing && g.phase === 'playing' && isBotSeat(g.currentSeat);
-  const busy = screen === 'game' && (botShot || botThink);
+  const solo = (room?.players.filter((p) => !p.isBot).length ?? 0) === 1; // có người thật khác thì không tua/skip
+  const busy = screen === 'game' && solo && (botShot || botThink);
   if (!busy && ffOn && g?.phase === 'playing' && !isBotSeat(g.currentSeat)) ffOn = false;
   bc.hidden = !busy;
   el('#ffbtn')?.classList.toggle('on', ffOn);
-  scene.playSpeed = ffOn && botShot ? 4 : 1;
+  scene.playSpeed = ffOn && botShot && solo ? 4 : 1;
   // tua nhanh: bỏ luôn thời gian chờ nghĩ của máy
   if (ffOn && botThink && Date.now() - lastSkipAt > 700) { lastSkipAt = Date.now(); net.send({ t: 'skipBot' }); }
 }
