@@ -101,6 +101,7 @@ function vibrate(ms: number): void {
 }
 
 // ============ điều hướng ============
+let menuSceneReady = false;
 function go(s: Screen): void {
   screen = s;
   if (s !== 'game') scene.setPeek(false);
@@ -109,13 +110,16 @@ function go(s: Screen): void {
   clearInterval(miniHandle);
   const menuBg = ['splash', 'main', 'create', 'join', 'lobby', 'settings', 'help', 'tcreate', 'tlist', 'tbracket', 'themes', 'shop'].includes(s);
   if (menuBg) {
-    if (!scene.playing) {
+    // chỉ dựng cảnh nền khi mới vào khu menu; chuyển qua lại giữa các menu thì giữ nguyên (tránh giật)
+    if (!menuSceneReady && !scene.playing) {
+      menuSceneReady = true;
       scene.aim.visible = false;
       scene.setCamMode('cinema');
       scene.startCelebration();
       showDemoRack();
     }
   } else {
+    menuSceneReady = false;
     scene.stopCelebration();
   }
   const fn: Record<Screen, () => void> = { splash, main, create, join, lobby, game, result: () => {}, tcreate, tlist, tbracket, settings, help, themes, shop };
@@ -435,6 +439,13 @@ function bindDial(): void {
   d.addEventListener('pointercancel', end);
 }
 
+function resetSpin(): void {
+  spin = { x: 0, y: 0 };
+  scene.spin = spin;
+  const d = el('#spindot');
+  if (d) { d.style.left = '50%'; d.style.top = '50%'; }
+}
+
 function bindSpin(): void {
   const sb = el('#spinball')!;
   const set = (ev: PointerEvent) => {
@@ -646,6 +657,7 @@ function shoot(): void {
   const c = scene.ballPos(0);
   const shot = { angle: scene.aim.angle, power: Math.max(0.03, scene.aim.power), spinX: spin.x, spinY: spin.y };
   powerSet(0);
+  resetSpin(); // mỗi lượt bắn làm mới điểm chấm đỏ về tâm
   net.send({ t: 'game.shot', shot, cue: bih ? { x: c.x, y: c.y } : undefined });
   shotPending = true;
   scene.localStroke(shot.power, shot.angle);

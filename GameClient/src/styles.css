@@ -16,7 +16,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
   padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(16px + var(--sab)) calc(16px + var(--sal)); overflow-y: auto; touch-action: pan-y;
   animation: fadein .25s ease; }
 .screen.bg { background: radial-gradient(1200px 700px at 20% -10%, #3a1b7a 0%, transparent 60%), radial-gradient(900px 600px at 100% 110%, #7a1b5a 0%, transparent 55%), linear-gradient(160deg, #1d1138, #0d0820); }
-.screen.glass { background: rgba(10, 5, 24, 0.55); backdrop-filter: blur(6px); }
+.screen.glass { background: rgba(10, 5, 24, 0.7); }
 @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 70% { transform: scale(1.08) } 100% { transform: scale(1); opacity: 1 } }
 @keyframes floaty { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
@@ -261,7 +261,7 @@ label.lbl { font-size: 13px; color: var(--muted); font-weight: 700; text-transfo
 .cuepv { transform: scaleX(-1); }
 .fxpv { width: 100%; height: 14px; border-radius: 7px; margin: 10px 0 6px; background: linear-gradient(90deg, transparent, var(--c1), var(--c2)); box-shadow: 0 0 10px var(--c1); }
 .mini { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: zoom-in; }
-.botctl { position: absolute; left: 50%; top: calc(58px + var(--sat)); transform: translateX(-50%); display: flex; gap: 6px; z-index: 35; pointer-events: auto; }
+.botctl { position: absolute; right: calc(104px + var(--sar, 0px)); bottom: calc(14px + var(--sab)); display: flex; flex-direction: column; align-items: stretch; gap: 6px; z-index: 35; pointer-events: auto; }
 .botctl[hidden] { display: none; }
 .bcbtn { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: rgba(14,10,32,.78); color: #fff; font: 600 12px/1 inherit; backdrop-filter: blur(8px); cursor: pointer; }
 .bcbtn.on { background: linear-gradient(135deg, #ffd34d, #ff9a3a); color: #2a1a00; border-color: transparent; }
