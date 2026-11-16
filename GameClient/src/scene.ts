@@ -391,13 +391,17 @@ class Strip {
   hide(): void { this.mesh.visible = false; }
 }
 
-export interface TableTheme { id: string; name: string; felt: number; cushion: number; wood: number; brass: number; neon: number; dia: number }
+export interface TableTheme { id: string; name: string; felt: number; cushion: number; wood: number; brass: number; neon: number; dia: number; leg?: 'round' | 'turned' | 'block' }
 export const TABLE_THEMES: TableTheme[] = [
   { id: 'classic', name: 'Cổ điển', felt: 0x13744a, cushion: 0x1b9a5c, wood: 0xffffff, brass: 0xe0b050, neon: 0xff5fa8, dia: 0xf7eac0 },
   { id: 'royal', name: 'Hoàng gia', felt: 0x1b55b8, cushion: 0x1d58b0, wood: 0x5a5f70, brass: 0xc8d0e0, neon: 0x57d6ff, dia: 0xe8f0ff },
   { id: 'crimson', name: 'Nhung đỏ', felt: 0xa51c30, cushion: 0x96182a, wood: 0xd9a46c, brass: 0xe0b050, neon: 0xffd34d, dia: 0xfff0c8 },
   { id: 'luxury', name: 'Ngọc lục bảo', felt: 0x0b6a48, cushion: 0x0e7a52, wood: 0x2b2b30, brass: 0xffd45a, neon: 0xffd34d, dia: 0xffe9a0 },
   { id: 'cyber', name: 'Cyber', felt: 0x2a2060, cushion: 0x3a2f80, wood: 0x2a2a3a, brass: 0x57ffe0, neon: 0x8f6bff, dia: 0x9ffff0 },
+  { id: 'walnut', name: 'Óc chó', felt: 0x1c5a3a, cushion: 0x1a6a44, wood: 0x6b3a22, brass: 0xd8a84a, neon: 0xffb25a, dia: 0xf3dca0, leg: 'turned' },
+  { id: 'ocean', name: 'Biển xanh', felt: 0x0e7d8c, cushion: 0x0b6e7c, wood: 0xe8edf2, brass: 0xb8d4e8, neon: 0x57e0ff, dia: 0xffffff, leg: 'block' },
+  { id: 'violet', name: 'Tím hoàng hôn', felt: 0x6a2d9a, cushion: 0x5a2488, wood: 0x1d1a24, brass: 0xe6c36a, neon: 0xc08bff, dia: 0xf0e0ff, leg: 'turned' },
+  { id: 'oak', name: 'Sồi sáng', felt: 0x2f7f55, cushion: 0x2a7048, wood: 0xd8b17a, brass: 0xb8863a, neon: 0xffe08a, dia: 0xfff4d0, leg: 'block' },
   { id: 'candy', name: 'Kẹo ngọt', felt: 0xd24a92, cushion: 0xbd3b82, wood: 0xffc0d4, brass: 0xfff2a8, neon: 0x57d6ff, dia: 0xffffff },
 ];
 
@@ -470,6 +474,7 @@ export class BilliardScene {
   private rimL!: THREE.DirectionalLight;
   private rimL2!: THREE.DirectionalLight;
   private hemiL!: THREE.HemisphereLight;
+  private legSets: Record<string, THREE.Group> = {};
   private tm!: { felt: THREE.MeshStandardMaterial; wood: THREE.MeshStandardMaterial; cushion: THREE.MeshStandardMaterial; brass: THREE.MeshStandardMaterial; neon: THREE.MeshBasicMaterial; dia: THREE.MeshStandardMaterial; ring: THREE.MeshBasicMaterial };
   tableId = 'classic';
   envId = 'lounge';
@@ -660,6 +665,7 @@ export class BilliardScene {
     this.tm.brass.color.set(t.brass);
     this.tm.neon.color.set(t.neon);
     this.tm.dia.color.set(t.dia);
+    for (const [k, g] of Object.entries(this.legSets)) g.visible = k === (t.leg ?? 'round');
   }
 
   private buildEnv(e: EnvTheme): THREE.Group {
@@ -1192,13 +1198,28 @@ export class BilliardScene {
     t.add(new THREE.Mesh(extrude(neon, -0.27, 0.012), neonMat));
     this.tm = { felt: feltMat, wood, cushion: cushionMat, brass, neon: neonMat, dia: diaMat, ring: neonMat };
 
-    // Chân bàn
-    for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.075, 0.48, 16), wood);
-        leg.position.set(sx * (L / 2 + 0.07), -0.54, sz * (W / 2 + 0.07));
-        t.add(leg);
+    // Chân bàn: 3 kiểu (tròn / tiện / khối), theme chọn kiểu hiện ra
+    const turnedPts: THREE.Vector2[] = [];
+    for (const [r, y] of [[0.07, 0.24], [0.085, 0.2], [0.05, 0.16], [0.06, 0.1], [0.095, 0.03], [0.06, -0.03], [0.04, -0.08], [0.07, -0.14], [0.1, -0.2], [0.07, -0.24]] as Array<[number, number]>) turnedPts.push(new THREE.Vector2(r, y));
+    const legGeos: Record<string, THREE.BufferGeometry> = {
+      round: new THREE.CylinderGeometry(0.095, 0.075, 0.48, 20),
+      turned: new THREE.LatheGeometry(turnedPts, 24),
+      block: new THREE.BoxGeometry(0.17, 0.48, 0.17),
+    };
+    this.legSets = {};
+    for (const k of Object.keys(legGeos)) {
+      const gset = new THREE.Group();
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const leg = new THREE.Mesh(legGeos[k], wood);
+          leg.castShadow = true;
+          leg.position.set(sx * (L / 2 + 0.07), -0.54, sz * (W / 2 + 0.07));
+          gset.add(leg);
+        }
       }
+      gset.visible = k === 'round';
+      this.legSets[k] = gset;
+      t.add(gset);
     }
 
     t.traverse((o) => { o.updateMatrix(); o.matrixAutoUpdate = false; });
