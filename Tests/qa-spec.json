@@ -1,0 +1,80 @@
+{
+  "_doc": "Bộ tiêu chí nghiệm thu VIGO. Mỗi mục có ngưỡng đo được; Tests/ui/qa.cjs chạy và in bảng ĐẠT/KHÔNG ĐẠT.",
+  "build": {
+    "bundleKB_max": 820,
+    "bundleKB_warn": 700
+  },
+  "render": {
+    "drawCalls_max": {
+      "low": 120,
+      "medium": 140,
+      "high": 170
+    },
+    "triangles_max": {
+      "low": 250000,
+      "medium": 300000,
+      "high": 400000
+    },
+    "geometries_max": 260,
+    "textures_max": 90,
+    "textureMB_max": 160,
+    "jsFrameMs_max": 4
+  },
+  "graphics": {
+    "feltBrightness": [
+      30,
+      200
+    ],
+    "frameNotBlankStdDev_min": 12,
+    "tablesAllRender": true,
+    "tablesDistinct_minColorDelta": 12
+  },
+  "animation": {
+    "cameraMaxSpeed_mps": 8,
+    "ballMaxSpeed_mps": 14,
+    "playbackFastForward_speedup_min": 2.5,
+    "spinResetAfterShot": true
+  },
+  "ui": {
+    "minTouchTargetPx": 32,
+    "minFontPx": 10,
+    "noHorizontalOverflow": true,
+    "viewports": [
+      [
+        844,
+        390
+      ],
+      [
+        667,
+        375
+      ],
+      [
+        932,
+        430
+      ],
+      [
+        740,
+        360
+      ]
+    ],
+    "noOverlapPairs": [
+      [
+        "#botctl",
+        "#gauge"
+      ],
+      [
+        "#botctl",
+        "#mini"
+      ],
+      [
+        "#botctl",
+        "#spinbox"
+      ]
+    ]
+  },
+  "stability": {
+    "jsErrors_max": 0,
+    "menuNavSetBalls_max": 1,
+    "heapGrowthMB_max": 40
+  }
+}

@@ -174,6 +174,7 @@ function main(): void {
 
 /** Màn hình chọn bàn + không gian: bảng dưới, cảnh 3D xem trước phía trên */
 function themes(): void {
+  menuSceneReady = false; // màn này tự dựng lại cảnh; khi quay về menu khác phải khôi phục cảnh nền
   ui.innerHTML = `<div class="screen sheet">
     ${backBtn('main')}
     <div class="sheetbox">
@@ -217,6 +218,7 @@ const profOfSeat = (seat: number) => room?.players.find((x) => x.seat === seat)?
 
 /** Cửa hàng: gậy, avatar, hiệu ứng đánh (chọn miễn phí, lưu trên máy và gửi cho đối thủ) */
 function shop(): void {
+  menuSceneReady = false; // màn này tự dựng lại cảnh; khi quay về menu khác phải khôi phục cảnh nền
   const tabs = [['c', 'Gậy'], ['a', 'Avatar'], ['f', 'Hiệu ứng']] as const;
   let items = '';
   if (shopTab === 'c') items = CUES.map((c, i) => `<button class="shopitem ${prof.c === i ? 'on' : ''}" data-pick="c:${i}">${cuePreviewCss(c)}<b>${c.name}</b><small>${c.desc}</small></button>`).join('');

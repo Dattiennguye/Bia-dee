@@ -74,3 +74,22 @@ Script: `Tests/ui/` (hướng dẫn chạy trong `Tests/ui/README.md`).
 - Client: nội suy Hermite bậc 3 quỹ đạo (giữ đoạn thẳng tại điểm gãy).
 - Test: 82/82 (thêm: góc cắt/throw theo tốc độ, tốc độ bật băng và khác biệt xoáy tiến/lùi). Test draw/follow đo ngay sau va chạm thay vì vị trí dừng (kết quả cuối hỗn loạn do bi dội lại).
 - Chưa kiểm chứng: cảm giác thật trên điện thoại; các hệ số (e băng, μ băng 0,2, muRoll 0,012) là giá trị tham khảo từ tài liệu, có thể cần tinh chỉnh theo phản hồi.
+
+## v1.9 — Bộ tiêu chí nghiệm thu tự động (QA spec)
+Hai tệp: `Tests/qa-spec.json` (ngưỡng) và `Tests/ui/qa.cjs` (chạy đo, in ĐẠT / KHÔNG ĐẠT). Chạy: `npm run qa` (cần server đang chạy ở `BASE`, mặc định `http://localhost:8099`).
+
+| Nhóm | Tiêu chí (ngưỡng) |
+|---|---|
+| Build | Dung lượng JS ≤ 820 KB |
+| Hiệu năng dựng hình | Draw calls ≤ 120/140/170 (thấp/vừa/cao); tam giác ≤ 250k/300k/400k; geometry ≤ 260; texture ≤ 90 và ≤ 160 MB (ước lượng); CPU JS mỗi khung ≤ 4 ms (không tính lệnh vẽ) |
+| Đồ họa | 11 bàn đều lên hình; độ sáng nỉ 30–200; ảnh không phẳng/trống (độ lệch chuẩn ≥ 12); hai bàn bất kỳ khác nhau về màu ≥ 12 |
+| Hoạt ảnh | Tốc độ camera tối đa ≤ 8 m/s; tốc độ bi 0,3–14 m/s (đo theo thời gian mô phỏng, không phụ thuộc FPS máy test); tua nhanh đạt ≥ 2,5× (đo thực 4,0×); chấm xoáy về tâm sau mỗi lượt bắn |
+| Giao diện | 4 cỡ màn hình ngang (844×390, 667×375, 932×430, 740×360): nút ≥ 32 px, chữ ≥ 10 px, không chồng nhau, không tràn, không cuộn ngang; lượt máy: nút tua hiện và bi chọn xoáy ẩn |
+| Ổn định | 0 lỗi JavaScript; chuyển menu thường không dựng lại cảnh; thoát Giao diện/Cửa hàng khôi phục camera phim; heap JS tăng ≤ 40 MB sau một lượt |
+
+Lỗi tìm thấy và sửa nhờ bộ này:
+- Thoát màn Giao diện/Cửa hàng về menu: camera nền kẹt ở góc nhìn xem bàn, hết hoạt cảnh nền (do tối ưu chuyển menu ở v1.8 bỏ qua việc khôi phục). Đã sửa, có test hồi quy.
+- Nút Tua nhanh/Bỏ qua trùng vị trí bi chọn xoáy ở góc phải dưới: không cùng hiện (bi xoáy ẩn ở lượt máy), nhưng đã thêm kiểm tra bất biến này.
+- Phép đo tua nhanh/tốc độ ban đầu phụ thuộc FPS (sandbox dựng hình phần mềm ~1 FPS) nên sai; đã đổi sang đo theo thời gian mô phỏng.
+
+Giới hạn: FPS, nhiệt độ, RAM thật trên điện thoại vẫn chưa đo được trong sandbox; các ngưỡng draw calls/tam giác/texture là ngân sách tự đặt, không phải số đo trên máy thật.

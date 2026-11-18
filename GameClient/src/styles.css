@@ -261,7 +261,7 @@ label.lbl { font-size: 13px; color: var(--muted); font-weight: 700; text-transfo
 .cuepv { transform: scaleX(-1); }
 .fxpv { width: 100%; height: 14px; border-radius: 7px; margin: 10px 0 6px; background: linear-gradient(90deg, transparent, var(--c1), var(--c2)); box-shadow: 0 0 10px var(--c1); }
 .mini { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: zoom-in; }
-.botctl { position: absolute; right: calc(104px + var(--sar, 0px)); bottom: calc(14px + var(--sab)); display: flex; flex-direction: column; align-items: stretch; gap: 6px; z-index: 35; pointer-events: auto; }
+.botctl { position: absolute; right: calc(88px + var(--sar, 0px)); bottom: calc(12px + var(--sab)); display: flex; flex-direction: column; align-items: stretch; gap: 6px; z-index: 35; pointer-events: auto; }
 .botctl[hidden] { display: none; }
 .bcbtn { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: rgba(14,10,32,.78); color: #fff; font: 600 12px/1 inherit; backdrop-filter: blur(8px); cursor: pointer; }
 .bcbtn.on { background: linear-gradient(135deg, #ffd34d, #ff9a3a); color: #2a1a00; border-color: transparent; }

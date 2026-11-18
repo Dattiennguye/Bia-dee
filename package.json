@@ -4,7 +4,9 @@
   "private": true,
   "description": "VIGO BILLIARDS PARTY - game bida 3D trực tuyến (Backend + Game Server, TypeScript)",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch Backend/src/main.ts",
     "start": "node dist/server.js",
@@ -12,7 +14,8 @@
     "build:client": "npm --prefix GameClient run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "qa": "node Tests/ui/qa.cjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
