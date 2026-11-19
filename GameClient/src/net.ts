@@ -44,7 +44,8 @@ export class Net {
   /** serverTime - Date.now() */
   clockOffset = 0;
   rtt = 0;
-  server = normalizeServer(LS.get('vigo.server') ?? '') || normalizeServer(defaultServerUrl());
+  // địa chỉ mặc định (gắn lúc build) luôn thắng giá trị cũ đã lưu, để người dùng không thể bị kẹt với địa chỉ sai
+  server = normalizeServer(defaultServerUrl()) || normalizeServer(LS.get('vigo.server') ?? '');
   private ws: WebSocket | null = null;
   private handlers = new Set<Handler>();
   private statusHandlers = new Set<(s: NetStatus) => void>();

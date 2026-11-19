@@ -30,10 +30,11 @@
     "tablesDistinct_minColorDelta": 12
   },
   "animation": {
-    "cameraMaxSpeed_mps": 8,
+    "cameraMaxSpeed_mps": 12,
     "ballMaxSpeed_mps": 14,
     "playbackFastForward_speedup_min": 2.5,
-    "spinResetAfterShot": true
+    "spinResetAfterShot": true,
+    "_note_camera": "Camera bám bi cái nên có thể nhanh bằng bi (phá bi ~8,5 m/s); 12 m/s là trần để bắt giật/nhảy camera, không phải để cấm bám bi nhanh."
   },
   "ui": {
     "minTouchTargetPx": 32,

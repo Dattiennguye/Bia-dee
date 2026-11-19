@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const p = await ctx.newPage(); p.setDefaultTimeout(30000);
   p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
   await p.addInitScript(() => { localStorage.setItem('vigo.name', 'Offline'); localStorage.setItem('vigo.quality', 'low'); localStorage.setItem('vigo.server', 'ws://127.0.0.1:1'); });
-  await p.goto((process.env.BASE || 'http://localhost:8099') + '/');
+  await p.goto((process.env.BASE || 'http://localhost:8099') + '/?server=ws://127.0.0.1:1');
   await sleep(2500);
   console.log('net', await p.evaluate(() => window.__vigo.net.status));
   await p.click('[data-act="quick"]');

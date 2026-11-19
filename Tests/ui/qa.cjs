@@ -19,7 +19,7 @@ async function openGame(browser, q, vp) {
   p.on('pageerror', (e) => p.errs.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|ERR_UNSAFE_PORT|favicon/.test(m.text())) p.errs.push(m.text().slice(0, 140)); });
   await p.addInitScript((q) => { localStorage.setItem('vigo.name', 'QA'); localStorage.setItem('vigo.quality', q); localStorage.setItem('vigo.server', 'ws://127.0.0.1:1'); }, q);
-  await p.goto(BASE + '/'); await sleep(2500);
+  await p.goto(BASE + '/?server=ws://127.0.0.1:1'); await sleep(2500);
   return { ctx, p };
 }
 async function startGame(p) {

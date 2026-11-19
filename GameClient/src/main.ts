@@ -135,7 +135,7 @@ function showDemoRack(): void {
 function connPill(): string {
   const st = net.status;
   const cls = st === 'online' ? 'on' : st === 'offline' ? 'off' : 'wait';
-  const txt = st === 'online' ? `Trực tuyến${net.rtt ? ' · ' + net.rtt + 'ms' : ''}` : st === 'offline' ? (net.server ? 'Ngoại tuyến' : 'Chưa có máy chủ') : 'Đang kết nối…';
+  const txt = st === 'online' ? `Trực tuyến${net.rtt ? ' · ' + net.rtt + 'ms' : ''}` : st === 'offline' ? 'Ngoại tuyến' : 'Đang kết nối…';
   return `<div class="pill" data-act="settings"><span class="dot ${cls}"></span>${txt}</div>`;
 }
 
@@ -994,8 +994,6 @@ function settings(): void {
       <div><label class="lbl">Góc nhìn gần / xa</label><div class="chips">${CAM_DIST.map(([n, v]) => `<button class="chip ${camDist === v ? 'on' : ''}" data-camd="${v}">${n}</button>`).join('')}</div></div>
       <div><label class="lbl">Đường kẻ ngắm bắn</label><div class="chips"><button class="chip ${guideOn ? 'on' : ''}" data-guide="1">Bật</button><button class="chip ${guideOn ? '' : 'on'}" data-guide="0">Tắt</button></div></div>
       <div><label class="lbl">Vệt màu của cơ & bi</label><div class="chips"><button class="chip ${fxOn ? 'on' : ''}" data-fxon="1">Bật</button><button class="chip ${fxOn ? '' : 'on'}" data-fxon="0">Tắt</button></div></div>
-      <div><label class="lbl">Máy chủ game</label><input id="sserver" value="${esc(net.server)}" placeholder="vd: bida.example.com" autocapitalize="none" autocomplete="off" />
-      <div class="pmeta" style="margin-top:4px">Trạng thái: ${net.status === 'online' ? '🟢 đã kết nối' : net.status === 'offline' ? '🔴 ngoại tuyến' : '🟡 đang kết nối'} ${net.lastError && net.status !== 'online' ? '· ' + esc(net.lastError) : ''}</div></div>
       <button class="btn gold block" data-act="savesettings">LƯU</button>
     </div></div>`;
   el<HTMLInputElement>('#vmusic')!.addEventListener('input', (e) => { audio.unlock(); music.unlock(); audio.setMusic(Number((e.target as HTMLInputElement).value)); });
@@ -1088,8 +1086,6 @@ function act(a: string, node?: HTMLElement): void {
     case 'resume': ui.querySelector('.pausebox')?.remove(); break;
     case 'savesettings': {
       net.setName(el<HTMLInputElement>('#sname')!.value || net.name);
-      const srv = el<HTMLInputElement>('#sserver')!.value;
-      if (normalizeServer(srv) !== net.server || net.status !== 'online') net.setServer(srv);
       toast('Đã lưu cài đặt', 'good', 1200);
       go('main');
       break;
@@ -1401,7 +1397,7 @@ function updateBanner(): void {
   else if (net.local) txt = '';
   else if (st === 'reconnecting') txt = '🔄 Mất kết nối — đang thử lại…';
   else if (st === 'connecting') txt = '⏳ Đang kết nối máy chủ…';
-  else if (st === 'offline') { txt = net.server ? '⚠️ Không kết nối được máy chủ' : '⚠️ Chưa cấu hình máy chủ — vào Cài đặt'; err = true; }
+  else if (st === 'offline') { txt = '⚠️ Không kết nối được máy chủ'; err = true; }
   banner.hidden = !txt;
   banner.textContent = txt;
   banner.classList.toggle('err', err);
@@ -1427,10 +1423,7 @@ scene.start();
 scene.setCamMode('cinema');
 scene.startCelebration();
 showDemoRack();
-if (!net.server) {
-  // chưa biết máy chủ nào: mở cài đặt sau màn hình chào
-  setTimeout(() => { if (screen === 'main') go('settings'); }, 2200);
-} else net.connect();
+net.connect();
 go('splash');
 
 // cho phép kiểm thử tự động điều khiển

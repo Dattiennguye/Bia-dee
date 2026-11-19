@@ -83,7 +83,7 @@ Hai tệp: `Tests/qa-spec.json` (ngưỡng) và `Tests/ui/qa.cjs` (chạy đo, i
 | Build | Dung lượng JS ≤ 820 KB |
 | Hiệu năng dựng hình | Draw calls ≤ 120/140/170 (thấp/vừa/cao); tam giác ≤ 250k/300k/400k; geometry ≤ 260; texture ≤ 90 và ≤ 160 MB (ước lượng); CPU JS mỗi khung ≤ 4 ms (không tính lệnh vẽ) |
 | Đồ họa | 11 bàn đều lên hình; độ sáng nỉ 30–200; ảnh không phẳng/trống (độ lệch chuẩn ≥ 12); hai bàn bất kỳ khác nhau về màu ≥ 12 |
-| Hoạt ảnh | Tốc độ camera tối đa ≤ 8 m/s; tốc độ bi 0,3–14 m/s (đo theo thời gian mô phỏng, không phụ thuộc FPS máy test); tua nhanh đạt ≥ 2,5× (đo thực 4,0×); chấm xoáy về tâm sau mỗi lượt bắn |
+| Hoạt ảnh | Tốc độ camera tối đa ≤ 12 m/s (camera bám bi cái nên có thể nhanh ngang bi khi phá bi; ngưỡng cũ 8 m/s hay trượt do ván ngẫu nhiên); tốc độ bi 0,3–14 m/s (đo theo thời gian mô phỏng, không phụ thuộc FPS máy test); tua nhanh đạt ≥ 2,5× (đo thực 4,0×); chấm xoáy về tâm sau mỗi lượt bắn |
 | Giao diện | 4 cỡ màn hình ngang (844×390, 667×375, 932×430, 740×360): nút ≥ 32 px, chữ ≥ 10 px, không chồng nhau, không tràn, không cuộn ngang; lượt máy: nút tua hiện và bi chọn xoáy ẩn |
 | Ổn định | 0 lỗi JavaScript; chuyển menu thường không dựng lại cảnh; thoát Giao diện/Cửa hàng khôi phục camera phim; heap JS tăng ≤ 40 MB sau một lượt |
 
