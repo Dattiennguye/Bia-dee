@@ -27,7 +27,7 @@ jobs:
         working-directory: GameClient
         shell: bash
         env:
-          VITE_SERVER_URL: ${{ vars.SERVER_URL }}
+          VITE_SERVER_URL: ${{ vars.SERVER_URL || 'https://vigo-billiards-party.onrender.com' }}
         run: |
           npm ci
           npm run build

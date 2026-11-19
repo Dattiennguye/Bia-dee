@@ -10,7 +10,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     p.on('pageerror', (e) => p.errs.push(e.message));
     await p.addInitScript((n) => { localStorage.setItem('vigo.name', n); }, name);
     await p.goto((process.env.BASE || 'http://localhost:8099') + '/');
-    await p.waitForFunction(() => window.__vigo && window.__vigo.net.status === 'online');
+    await p.waitForFunction(() => window.__vigo && window.__vigo.net.status === 'online', null, { timeout: 120000 });
     await sleep(1800);
     return p;
   };
